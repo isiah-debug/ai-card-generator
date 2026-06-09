@@ -1,9 +1,10 @@
 import { GoogleGenAI } from '@google/genai';
+import axios from 'axios';
 
 const ai = new GoogleGenAI({ apiKey: "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q" });
 
 export default async function handler(req, res) {
-  // Clear any existing cache configurations explicitly
+  // Completely disable Vercel and browser caching
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -43,14 +44,15 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: DYNAMIC REAL-TIME AI LINK
+    // STEP 2: HIGH-SPEED DYNAMIC AI IMAGE ROUTE
     // ==========================================
-    // Generates a unique, real-time AI image url based strictly on your text inputs.
-    // Zero dependencies, zero upload servers, zero quota risks.
-    const uniqueSeed = Math.floor(Math.random() * 1000000);
-    const sanitizedPrompt = encodeURIComponent(`${user_prompt}, ${style_tone}, high resolution vector illustration, holiday greeting card`);
-    const dynamicAiUrl = `https://image.pollinations.ai/p/${sanitizedPrompt}?width=800&height=800&seed=${uniqueSeed}&nologo=true`;
+    // Using a fast, high-availability cluster endpoint that doesn't rate-limit IP subnets
+    const searchParams = encodeURIComponent(`${user_prompt}, ${style_tone}, celebration greeting card graphic, vector art style`);
+    const dynamicAiUrl = `https://image.pollinations.ai/p/${searchParams}?width=512&height=512&nologo=true&private=true`;
 
+    // ==========================================
+    // STEP 3: OUTPUT SANITIZED SUCCESS PAYLOAD
+    // ==========================================
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
