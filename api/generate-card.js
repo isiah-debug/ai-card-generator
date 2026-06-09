@@ -3,7 +3,7 @@ import fetch from 'node-fetch';
 const GEMINI_API_KEY = "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q";
 
 export default async function handler(req, res) {
-  // Hard break caching layers across all browsers and CDN edge networks
+  // Hard disable caching across Vercel/Heroku edge networks
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: DYNAMIC SOURCE KEYWORD ENGINE
+    // STEP 2: DYNAMIC UNTHROTTLED FEATURED ENGINE
     // ==========================================
     // Sanitizes strings and transforms multi-word sentences into comma-delimited tokens
     const isolatedKeywords = user_prompt
@@ -59,11 +59,10 @@ export default async function handler(req, res) {
       .filter(word => word.length > 2 && !["with", "and", "the", "for", "from", "cute"].includes(word))
       .join(",");
 
-    // Fall back to a default high-volume tag group if the sanitized keyword pool is clean empty
-    const baselineTags = isolatedKeywords ? isolatedKeywords : "celebration,party";
+    const baselineTags = isolatedKeywords ? isolatedKeywords : "celebration";
     const cacheBusterSig = Math.floor(Math.random() * 999999);
 
-    // Dynamic tag matching architecture that maps directly to what your user enters
+    // Using Unsplash's live, unthrottled global keyword featured route directory
     const permanentImageUrl = `https://images.unsplash.com/featured/800x800/?birthday,illustration,${baselineTags}&sig=${cacheBusterSig}`;
 
     // ==========================================
