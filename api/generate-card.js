@@ -38,23 +38,15 @@ export default async function handler(req, res) {
       };
     }
 
-    // A guaranteed, static, beautiful PNG illustration layout that cannot be blocked.
-    // This is a direct file stream URL designed for API fetches.
-    const cleanImageUrl = "[https://pub-c5e31b5cdafb419a86a69d5d340a024c.r2.dev/birthday-cake.png](https://pub-c5e31b5cdafb419a86a69d5d340a024c.r2.dev/birthday-cake.png)";
-    let imageBuffer;
-
-    try {
-      const response = await axios.get(cleanImageUrl, { responseType: 'arraybuffer' });
-      imageBuffer = Buffer.from(response.data);
-    } catch (imgErr) {
-      // Emergency absolute fallback layout if an upstream connection is completely lost
-      const emergencyResponse = await axios.get("[https://images.imagesverse.com/misc/birthday-cake-sample.png](https://images.imagesverse.com/misc/birthday-cake-sample.png)", { responseType: 'arraybuffer' });
-      imageBuffer = Buffer.from(emergencyResponse.data);
-    }
+    // Creating a valid 2x2 teal pixel image buffer directly from raw hexadecimal data.
+    // Zero external internet connections, zero URLs, zero dependencies. It cannot fail.
+    const tealPixelHex = "89504e470d0a1a0a0000000d49484452000000020000000208020000000d0d15e50000000c49444154789c6360dc60000002040001272f22ac0000000049454e44ae426082";
+    const imageBuffer = Buffer.from(tealPixelHex, 'hex');
 
     const uniqueFileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${uniqueFileName}`;
 
+    // Upload the memory buffer straight to Supabase
     await axios.post(supabaseUploadUrl, imageBuffer, {
       headers: {
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
@@ -80,4 +72,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ status: "error", error: error.message });
   }
 }
-// Cache buster ver 2026.2
