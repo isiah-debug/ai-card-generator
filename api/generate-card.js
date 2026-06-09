@@ -38,32 +38,36 @@ export default async function handler(req, res) {
       };
     }
 
-    // A real, colorful 100x100 graphic asset layout hardcoded directly into the file.
-    // This can never fail or cause an "Invalid URL" error because it runs completely locally!
-    const guaranteedBirthdayGraphicBase64 = 
-      "iVBORw0KGgoAAAANSUhEUgAAGQAAAZACAYAAACK6Za+AAAACXBIWXMAAAsTAAALEwEAmpwYAAAA" +
-      "B3RJTUUH6AYKFlYACwUGbAAAIABJREFUeNrs3XmYVdWZ9//POnWGBmQGBgFFRFAUFUdBwBlHnMc4" +
-      "T9aoM9G000bbaWOit9NoYmKi09vE6YmdaGKi09vE6W06jW0cozgwigYVEUVEBhkEmXmouur8/jg" +
-      "Vp6pOnSowg8v7ep77uVwunHPrVD377L3W8/vOWgshRERERERERERERERERERERERERERERERERE" +
-      "RERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERE" +
-      "RERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERE" +
-      "RERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERE" +
-      "RERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERE" +
-      "RERERERERERERERED6YkhBBCCCOEEEIIIYQQQgghhBBCCCOEEEIIIYQQQgghhBBCCCOEEEIIIY" +
-      "QQQgghhBBCCCOEEEIIIYQQQgghhBBCCCOEEEIIIYQQQgghhBBCCCOEEEIIIYQQQgghhBBCCCH0" +
-      "YOn/A2pL8AasAatVAAAAAElFTkSuQmCC";
+    // Natively generate a real, colorful festive image canvas right on the server.
+    // This creates an actual visible graphic asset without needing external URLs.
+    const width = 800;
+    const height = 800;
+    
+    // An SVG string representing a clean, modern teal card with multi-colored party confetti drops
+    const svgGraphic = `
+      <svg width="${width}" height="${height}" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)">
+        <rect width="100%" height="100%" fill="#14b8a6"/>
+        <circle cx="100" cy="150" r="15" fill="#facc15" />
+        <circle cx="700" cy="200" r="25" fill="#f43f5e" />
+        <circle cx="200" cy="650" r="20" fill="#3b82f6" />
+        <circle cx="650" cy="600" r="12" fill="#a855f7" />
+        <circle cx="400" cy="100" r="18" fill="#f97316" />
+        <circle cx="150" cy="400" r="22" fill="#ec4899" />
+        <circle cx="680" cy="420" r="16" fill="#22c55e" />
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="48" font-weight="bold" fill="white">🎉 TIME TO CELEBRATE! 🎉</text>
+      </svg>
+    `;
 
-    // Instantly transform the raw text asset directly into a binary image file buffer
-    const imageBuffer = Buffer.from(guaranteedBirthdayGraphicBase64, 'base64');
+    const imageBuffer = Buffer.from(svgGraphic.trim());
 
-    const uniqueFileName = `birthday-card-${Date.now()}.png`;
+    const uniqueFileName = `birthday-card-${Date.now()}.svg`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${uniqueFileName}`;
 
     await axios.post(supabaseUploadUrl, imageBuffer, {
       headers: {
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         'apikey': SUPABASE_ANON_KEY,
-        'Content-Type': 'image/png'
+        'Content-Type': 'image/svg+xml'
       }
     });
 
