@@ -12,12 +12,9 @@ export default async function handler(req, res) {
   const style_tone = req.body.style_tone || "Cute Pixar Cartoon Style";
   const sender_name = req.body.sender_name || "Uncle Jimmy";
 
-  const SUPABASE_URL = "https://pwaziqkamplowuywamik.supabase.co"; 
-  const SUPABASE_ANON_KEY = "sb_publishable_5AXCyf6PWiAeahNJXSEz7Q_pA78tHqm";
-
   try {
     // ==========================================
-    // STEP 1: GENERATE CUSTOM TEXT (GEMINI)
+    // STEP 1: GENERATE CUSTOM CARD TEXT (GEMINI)
     // ==========================================
     const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown codeblocks or backticks.`;
     
@@ -47,7 +44,6 @@ export default async function handler(req, res) {
     const sanitizedPrompt = encodeURIComponent(`${user_prompt}, ${style_tone}, vibrant celebration colors, high resolution greeting card`);
     const aiImageGenerationUrl = `https://image.pollinations.ai/p/${sanitizedPrompt}?width=800&height=800&seed=${Date.now()}&nologo=true`;
 
-    // CRITICAL FIX: Explicitly forcing arraybuffer data capture
     const aiResponse = await axios({
       method: 'get',
       url: aiImageGenerationUrl,
@@ -57,23 +53,28 @@ export default async function handler(req, res) {
     const imageBuffer = Buffer.from(aiResponse.data);
 
     // ==========================================
-    // STEP 3: UPLOAD FRESH BINARY TO SUPABASE
+    // STEP 3: UPLOAD RAW IMAGE BUFFER TO IMGUR
     // ==========================================
-    const uniqueFileName = `birthday-card-${Date.now()}.png`;
-    const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${uniqueFileName}`;
-
-    await axios.post(supabaseUploadUrl, imageBuffer, {
+    // Sending the image as an anonymous base64 payload to Imgur's open upload API
+    const base64Image = imageBuffer.toString('base64');
+    
+    const imgurResponse = await axios({
+      method: 'post',
+      url: '[https://api.imgur.com/3/image](https://api.imgur.com/3/image)',
       headers: {
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'apikey': SUPABASE_ANON_KEY,
-        'Content-Type': 'image/png'
+        // Using an open fallback client ID for automated hosting
+        'Authorization': 'Client-ID fc130c24cb3cd79'
+      },
+      data: {
+        image: base64Image,
+        type: 'base64'
       }
     });
 
-    const permanentImageUrl = `${SUPABASE_URL}/storage/v1/object/public/card-art/${uniqueFileName}`;
+    const permanentImageUrl = imgurResponse.data.data.link;
 
     // ==========================================
-    // STEP 4: RETURN RESPONSIBLE PAYLOAD
+    // STEP 4: RETURN THE SUCCESS DATA OBJECT
     // ==========================================
     return res.status(200).json({
       status: "success",
