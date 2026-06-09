@@ -43,21 +43,18 @@ export default async function handler(req, res) {
 
     // STEP B: Fetch a vibrant, guaranteed Birthday Cake photo instantly
     let imageBuffer;
-    
-    // Direct link to a beautiful celebration cake graphic asset
     const guaranteedCakeUrl = `https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?auto=format&fit=crop&w=1200&h=1200&q=80`;
 
     try {
       const imageResponse = await axios.get(guaranteedCakeUrl, { responseType: 'arraybuffer' });
       imageBuffer = Buffer.from(imageResponse.data);
     } catch (imgErr) {
-      // Direct backup celebration balloon graphic asset (No more red shirt photo!)
+      // Direct backup celebration balloons asset (No more red shirt man!)
       const fallbackResponse = await axios.get(`https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=1200&h=1200&q=80`, { responseType: 'arraybuffer' });
       imageBuffer = Buffer.from(fallbackResponse.data);
     }
 
     // STEP C: Push the image straight to your Supabase Storage bucket with a unique filename
-    // Defining uniqueFileName here fixes the crash on your upload line!
     const uniqueFileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${uniqueFileName}`;
 
