@@ -3,7 +3,6 @@ import { GoogleGenAI } from '@google/genai';
 const ai = new GoogleGenAI({ apiKey: "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q" });
 
 export default async function handler(req, res) {
-  // Hard-disable caching across Vercel and browsers to force fresh data
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -42,14 +41,16 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: HIGH-SPEED CONTEXT IMAGE ENGINE
+    // STEP 2: HIGH-SPEED GRAPHIC KEYWORD MATCH
     // ==========================================
-    // Extracts clean descriptive terms from your user_prompt to instantly generate an image matching your exact theme
+    // Clean user prompts and combine them with strict card/illustration design tags
     const cleanKeywords = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").split(" ").join(",");
-    const permanentImageUrl = `https://loremflickr.com/800/800/${encodeURIComponent(cleanKeywords)}?lock=${Math.floor(Math.random() * 1000)}`;
+    const designFilters = "birthday,card,vector,illustration,cartoon";
+    
+    const permanentImageUrl = `https://loremflickr.com/800/800/${encodeURIComponent(cleanKeywords)},${designFilters}/all?lock=${Math.floor(Math.random() * 1000)}`;
 
     // ==========================================
-    // STEP 3: OUTPUT THE SANITIZED PAYLOAD
+    // STEP 3: OUTPUT THE PAYLOAD
     // ==========================================
     return res.status(200).json({
       status: "success",
