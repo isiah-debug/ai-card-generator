@@ -3,7 +3,7 @@ import fetch from 'node-fetch';
 const GEMINI_API_KEY = "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q";
 
 export default async function handler(req, res) {
-  // Prevent any caching across live web routers
+  // Clear any edge caching across serverless environments
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -17,11 +17,17 @@ export default async function handler(req, res) {
 
   try {
     // ==========================================
-    // STEP 1: CONSOLIDATED DATA GENERATION (GEMINI)
+    // STEP 1: RESILIENT DATA GENERATION (GEMINI)
     // ==========================================
+    // Explicitly instructs Gemini to output clean string patterns without library schema dependencies
     const generationPrompt = `Create a custom birthday card layout based on this theme: "${user_prompt}". 
-    Provide values for headline_greeting, inside_message, wishing_tone, and svg_graphic_code.
-    For svg_graphic_code, generate a beautifully designed raw XML SVG element (width='800' height='800') containing vector paths, shapes, or text representing the theme: '${user_prompt}'. Ensure it has a vibrant colored background matching a birthday theme.`;
+    Return a raw JSON object ONLY with these exact keys:
+    "headline_greeting": "A short, catchy card front title",
+    "inside_message": "An elegant, heartwarming birthday paragraph",
+    "wishing_tone": "The general mood of the card",
+    "svg_graphic_code": "Write a beautifully designed raw XML SVG element (width='800' height='800') containing vector paths, gradients, rectangles, or shapes representing the theme: '${user_prompt}'. Make sure it uses modern, vibrant colors matching a birthday theme and has a clear colored background."
+    
+    Do NOT include any markdown codeblocks, backticks, or text outside the JSON object. Return raw JSON only.`;
     
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
     
@@ -29,46 +35,39 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: generationPrompt }] }],
-        // Enforce native JSON output matching our blueprint structure
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              headline_greeting: { type: "STRING" },
-              inside_message: { type: "STRING" },
-              wishing_tone: { type: "STRING" },
-              svg_graphic_code: { type: "STRING" }
-            },
-            required: ["headline_greeting", "inside_message", "wishing_tone", "svg_graphic_code"]
-          }
-        }
+        contents: [{ parts: [{ text: generationPrompt }] }]
       })
     });
 
     const geminiData = await geminiResponse.json();
 
-    // Catch any upstream errors returned directly by the Google API
+    // Catch clear API authorization issues upfront
     if (geminiData.error) {
-      return res.status(400).json({ status: "error", error: geminiData.error.message });
+      return res.status(401).json({ status: "error", error: geminiData.error.message });
     }
 
-    // Defensive check to ensure the payload structure exists
-    if (!geminiData.candidates?.[0]?.content?.parts?.[0]?.text) {
-      throw new Error("Invalid or empty response structure from Gemini API.");
+    let rawText = geminiData.candidates[0].content.parts[0].text.trim();
+    
+    // Extracted sanitization layer to pull out valid JSON even if markdown backticks creep in
+    if (rawText.includes("```")) {
+      const openIndex = rawText.indexOf("{");
+      const closeIndex = rawText.lastIndexOf("}");
+      if (openIndex !== -1 && closeIndex !== -1) {
+        rawText = rawText.substring(openIndex, closeIndex + 1);
+      }
     }
-
-    const parsedData = JSON.parse(geminiData.candidates[0].content.parts[0].text.trim());
+    
+    const parsedData = JSON.parse(rawText);
 
     // ==========================================
     // STEP 2: COMPOSE CACHE-PROOF DATA URL
     // ==========================================
+    // Conversions handle text characters cleanly without breaking image sources
     const base64Svg = Buffer.from(parsedData.svg_graphic_code).toString('base64');
     const secureDataImageUrl = `data:image/svg+xml;base64,${base64Svg}`;
 
     // ==========================================
-    // STEP 3: OUTPUT CLEAN PRODUCTION PAYLOAD
+    // STEP 3: OUTPUT CLEAN WEBSITE PAYLOAD
     // ==========================================
     return res.status(200).json({
       status: "success",
