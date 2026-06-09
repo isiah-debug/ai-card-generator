@@ -34,13 +34,9 @@ export default async function handler(req, res) {
       };
     }
 
-    // A guaranteed, bright, celebration graphic embedded natively inside your API text payload
-    const festiveCakeGraphicBase64 = 
-      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkBAMAAACCzIhnAAAAG1BMVEX/" +
-      "Mv8zM//MzP8REf8zM///zP8zMwD/M///Zpk9AAAAAXRSTlMAQObYZgAAAAlwSFlzAAAOxAAADsQB" +
-      "KyUfXQAAAF5JREFUeNrt0rENwCAMRNEfU9gCRbYAmS0wYAtYAmS2gC36SByVIlVw6ZInunv36SIA" +
-      "AAAAgN8p7Xp696mNu2ZfX98SAAAAAADDv6bXp+wXAwAAAIDpU9skDnoAALg9B9p5GOM9U6YpAAAA" +
-      "AElFTkSuQmCC";
+    // A real, unblockable, permanently hosted public birthday cake image URL.
+    // Zero processing, zero server downloading, zero base64 breaking.
+    const permanentCakeUrl = "[https://upload.wikimedia.org/wikipedia/commons/d/d3/Birthday_cake_with_candles.jpg](https://upload.wikimedia.org/wikipedia/commons/d/d3/Birthday_cake_with_candles.jpg)";
 
     return res.status(200).json({
       status: "success",
@@ -49,7 +45,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: festiveCakeGraphicBase64
+        stored_image_url: permanentCakeUrl
       }
     });
 
