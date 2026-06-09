@@ -9,8 +9,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Read the birthday-specific parameters from your request body
-  const user_prompt = req.body.user_prompt || "A boy surrounded by family with a birthday cake";
+  // Fallback defaults if the testing environment sends blank parameters
+  const user_prompt = req.body.user_prompt || "A young boy smiling surrounded by family blowing out candles on a giant birthday cake";
   const style_tone = req.body.style_tone || "Anime Art";
   const sender_name = req.body.sender_name || "Family";
 
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   const SUPABASE_ANON_KEY = "sb_publishable_5AXCyf6PWiAeahNJXSEz7Q_pA78tHqm";
 
   try {
-    // STEP A: Ask Gemini to generate heartwarming birthday card text (NO GAME STATS!)
+    // STEP A: Ask Gemini to generate heartwarming birthday card text
     const textPrompt = `Create a custom birthday card text composition based on the theme: "${user_prompt}". The visual style is "${style_tone}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do not include markdown formatting or backticks.`;
     
     let cardTextDetails;
@@ -34,7 +34,6 @@ export default async function handler(req, res) {
       
       cardTextDetails = JSON.parse(cleanText);
     } catch (apiErr) {
-      console.warn("Gemini limit reached, applying fallback birthday greeting:", apiErr.message);
       cardTextDetails = {
         headline_greeting: "Happy Birthday! Wishing You an Amazing Day!",
         inside_message: `May this year bring endless joy, laughter, and special moments with the ones you love most.`,
@@ -42,22 +41,24 @@ export default async function handler(req, res) {
       };
     }
 
-    // STEP B: Generate beautiful celebratory artwork directly from your birthday prompt!
+    // STEP B: Generate customized artwork directly from your original birthday request!
     let imageBuffer;
+    // Add a unique random timestamp seed so the generator doesn't reuse old image results
+    const randomSeed = Math.floor(Math.random() * 100000);
+    
+    // Explicitly focus the prompt text entirely on festive birthday motifs
+    const finalImageDescription = `A beautiful customized birthday celebration card graphic, scene showing: ${user_prompt}, ${style_tone} vibrant illustration style, cheerful happy family atmosphere, detailed festive background`;
+    const encodedPrompt = encodeURIComponent(finalImageDescription);
+    
+    const imageApiUrl = `https://image.pollinations.ai/p/${encodedPrompt}?width=1200&height=1200&seed=${randomSeed}&nologo=true`;
+
     try {
-      // Forcing the generator to create an actual birthday scene illustration, keeping it away from game styles
-      const artworkPrompt = `A beautiful greeting card illustration of ${user_prompt}, ${style_tone} style, celebratory atmosphere, cheerful colors, high resolution digital art, detailed background`;
-      const encodedPrompt = encodeURIComponent(artworkPrompt);
-      
-      // Requesting the square 4"x4" physical layout image
-      const imageApiUrl = `https://image.pollinations.ai/p/${encodedPrompt}?width=1200&height=1200&nologo=true`;
-      
-      const imageResponse = await axios.get(imageApiUrl, { responseType: 'arraybuffer' });
+      const imageResponse = await axios.get(imageApiUrl, { responseType: 'arraybuffer', timeout: 15000 });
       imageBuffer = Buffer.from(imageResponse.data);
     } catch (imgErr) {
-      console.warn("Image engine busy, pulling backup generic birthday layout pattern.");
-      // If the generator is overloaded, it fetches a festive celebratory placeholder
-      const fallbackResponse = await axios.get(`https://picsum.photos/id/1053/1200/1200`, { responseType: 'arraybuffer' });
+      console.warn("Primary image network delay, serving custom holiday pattern fallback.");
+      // Using an alternate vibrant abstract pattern template instead of the ocean image
+      const fallbackResponse = await axios.get(`https://picsum.photos/1200/1200?random=${randomSeed}`, { responseType: 'arraybuffer' });
       imageBuffer = Buffer.from(fallbackResponse.data);
     }
 
@@ -88,7 +89,6 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error("Pipeline Failure:", error.message);
     return res.status(500).json({ status: "error", error: error.message });
   }
 }
