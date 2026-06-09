@@ -3,7 +3,7 @@ import fetch from 'node-fetch';
 const GEMINI_API_KEY = "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q";
 
 export default async function handler(req, res) {
-  // Enforce total cache destruction across all browsers and edge network routes
+  // Hard break caching layers across all browsers and CDN edge networks
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -12,12 +12,12 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const user_prompt = req.body?.user_prompt || "A little kid blowing out birthday candles";
+  const user_prompt = req.body?.user_prompt || "birthday cake";
   const sender_name = req.body?.sender_name || "Uncle Jimmy";
 
   try {
     // ==========================================
-    // STEP 1: GENERATE CUSTOM CARD TEXT (GEMINI REST)
+    // STEP 1: NATIVE GEMINI TEXT CUSTOMIZATION
     // ==========================================
     const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown codeblocks, formatting, or backticks.`;
     
@@ -36,33 +36,38 @@ export default async function handler(req, res) {
       const geminiData = await geminiResponse.json();
       let rawText = geminiData.candidates[0].content.parts[0].text.trim();
       
-      // Sanitizes and strips out any unwanted markdown formatting if present
       if (rawText.startsWith("```json")) rawText = rawText.replace(/```json|```/g, "").trim();
       if (rawText.startsWith("```")) rawText = rawText.replace(/```/g, "").trim();
       
       cardTextDetails = JSON.parse(rawText);
     } catch (apiErr) {
-      // Robust structural fallback if text parsing encounters issues
       cardTextDetails = {
         headline_greeting: "Happy Birthday!",
-        inside_message: `May your special day be filled with endless joy, laughter, and cake!`,
+        inside_message: `Wishing you a fantastic day filled with fun, laughter, and great memories!`,
         wishing_tone: "Joyful"
       };
     }
 
     // ==========================================
-    // STEP 2: HIGH-SPEED PRODUCTION GRAPHIC MATCH
+    // STEP 2: DYNAMIC SOURCE KEYWORD ENGINE
     // ==========================================
-    // Cleans up the user prompt and pairs it with design modifiers for a beautiful image query
-    const cleanKeywords = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "");
-    const searchTerms = encodeURIComponent(`${cleanKeywords} birthday greeting card illustration vector graphic`);
-    const uniqueSig = Math.floor(Math.random() * 999999);
-    
-    // Using Unsplash's robust, non-blocking keyword fallback system
-    const dynamicImageUrl = `https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=800&h=800&q=80&sig=${uniqueSig}&q=${searchTerms}`;
+    // Sanitizes strings and transforms multi-word sentences into comma-delimited tokens
+    const isolatedKeywords = user_prompt
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]/g, "")
+      .split(" ")
+      .filter(word => word.length > 2 && !["with", "and", "the", "for", "from", "cute"].includes(word))
+      .join(",");
+
+    // Fall back to a default high-volume tag group if the sanitized keyword pool is clean empty
+    const baselineTags = isolatedKeywords ? isolatedKeywords : "celebration,party";
+    const cacheBusterSig = Math.floor(Math.random() * 999999);
+
+    // Dynamic tag matching architecture that maps directly to what your user enters
+    const permanentImageUrl = `https://images.unsplash.com/featured/800x800/?birthday,illustration,${baselineTags}&sig=${cacheBusterSig}`;
 
     // ==========================================
-    // STEP 3: OUTPUT SANITIZED SUCCESS PAYLOAD
+    // STEP 3: SANITIZED WEB SUCCESS OBJECT
     // ==========================================
     return res.status(200).json({
       status: "success",
@@ -71,7 +76,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: dynamicImageUrl
+        stored_image_url: permanentImageUrl
       }
     });
 
