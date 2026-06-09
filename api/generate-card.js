@@ -1,7 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import axios from 'axios';
 
-// Initialize the Google Gen AI client with your API key
 const ai = new GoogleGenAI({ apiKey: "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q" });
 
 export default async function handler(req, res) {
@@ -18,7 +17,7 @@ export default async function handler(req, res) {
 
   try {
     // ==========================================
-    // STEP 1: GENERATE CUSTOM CARD TEXT (GEMINI)
+    // STEP 1: GENERATE CUSTOM TEXT (GEMINI 2.5)
     // ==========================================
     const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown codeblocks or backticks.`;
     
@@ -43,27 +42,18 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: GENERATE NEW IMAGE WITH AI (IMAGEN)
+    // STEP 2: GENERATE REAL IMAGE WITH AI (POLLINATIONS)
     // ==========================================
-    const finalVisualPrompt = `A stunning, high-quality festive birthday card background showing: ${user_prompt}. Digital art style: ${style_tone}. Colorful, celebration theme, professional illustration.`;
-    
-    // Correct SDK call structure for Imagen 3 image generation
-    const imageResponse = await ai.models.generateImages({
-      model: 'imagen-3.0-generate-002',
-      prompt: finalVisualPrompt,
-      config: {
-        numberOfImages: 1,
-        outputMimeType: 'image/png',
-        aspectRatio: '1:1',
-      },
-    });
+    // Creating a clean, URL-safe prompt for the image generator engine
+    const sanitizedPrompt = encodeURIComponent(`${user_prompt}, ${style_tone}, vibrant celebration colors, high resolution greeting card`);
+    const aiImageGenerationUrl = `https://image.pollinations.ai/p/${sanitizedPrompt}?width=800&height=800&seed=${Date.now()}&nologo=true`;
 
-    // Extract the base64 string from the correct response structure and turn it into a binary buffer
-    const base64ImageBytes = imageResponse.generatedImages[0].image.imageBytes;
-    const imageBuffer = Buffer.from(base64ImageBytes, 'base64');
+    // Download the freshly generated AI image directly as an array buffer
+    const aiImageResponse = await axios.get(aiImageGenerationUrl, { responseType: 'arraybuffer' });
+    const imageBuffer = Buffer.from(aiImageResponse.data);
 
     // ==========================================
-    // STEP 3: UPLOAD GEN-AI IMAGE TO SUPABASE
+    // STEP 3: UPLOAD AI IMAGE TO SUPABASE
     // ==========================================
     const uniqueFileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${uniqueFileName}`;
@@ -76,11 +66,11 @@ export default async function handler(req, res) {
       }
     });
 
-    // Construct the live public URL path pointing directly to your new AI asset
+    // The unique, permanent URL to your newly created AI graphic file
     const permanentImageUrl = `${SUPABASE_URL}/storage/v1/object/public/card-art/${uniqueFileName}`;
 
     // ==========================================
-    // STEP 4: RETURN RESPONSIBLE SUCCESS OBJECT
+    // STEP 4: RETURN THE FINISHED PAYLOAD
     // ==========================================
     return res.status(200).json({
       status: "success",
