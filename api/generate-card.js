@@ -43,30 +43,28 @@ export default async function handler(req, res) {
     } catch (apiErr) {
       cardTextDetails = {
         headline_greeting: "Happy Birthday!",
-        inside_message: `Wishing you an incredible day filled with sweet moments, laughter, and your favorite treats!`,
+        inside_message: `Wishing you an incredible day filled with fun adventures, great memories, and lots of smiles!`,
         wishing_tone: "Joyful"
       };
     }
 
     // ==========================================
-    // STEP 2: CACHE-BUSTING DYNAMIC SOURCE IMAGE
+    // STEP 2: 100% OPEN DYNAMIC GRAPHIC STREAM
     // ==========================================
-    // Clean up keywords and replace spaces with plus signs to build a reliable keyword engine query URL
-    const sanitizedQuery = user_prompt
+    // Extracts clean, comma-separated search tags for the LoremFlickr processing engine
+    const cleanTags = user_prompt
       .toLowerCase()
       .replace(/[^a-zA-Z0-9 ]/g, "")
       .trim()
       .split(/\s+/)
-      .join("+");
+      .join(",");
 
-    // We append a constantly changing millisecond timestamp parameter (?t=) alongside a random signature block.
-    // This makes it completely impossible for Vercel, Heroku, or your web browser to cache the image link.
-    const uniqueTimestamp = Date.now();
-    const dynamicBuster = Math.floor(Math.random() * 100000);
-    const finalLiveImageUrl = `https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=800&h=800&q=80&sig=${dynamicBuster}&t=${uniqueTimestamp}&query=${sanitizedQuery}`;
+    // Appending a random buster breaks browser memory hooks and forces a live keyword match evaluation
+    const cacheBuster = Math.floor(Math.random() * 99999);
+    const modernLiveUrl = `https://loremflickr.com/800/800/${encodeURIComponent(cleanTags)}?lock=${cacheBuster}`;
 
     // ==========================================
-    // STEP 3: OUTPUT THE PAYLOAD
+    // STEP 3: OUTPUT CLEAN PRODUCTION PAYLOAD
     // ==========================================
     return res.status(200).json({
       status: "success",
@@ -75,7 +73,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: finalLiveImageUrl
+        stored_image_url: modernLiveUrl
       }
     });
 
