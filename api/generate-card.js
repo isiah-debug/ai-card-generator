@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
   try {
     // STEP A: Ask Gemini to generate heartwarming birthday card text
-    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". The visual style is "${style_tone}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include gaming terminology, attack stats, markdown formatting, or backticks.`;
+    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include gaming terminology, attack stats, markdown formatting, or backticks.`;
     
     let cardTextDetails;
     try {
@@ -41,24 +41,18 @@ export default async function handler(req, res) {
       };
     }
 
-    // STEP B: Generate customized artwork using Pollinations' clean default endpoint pattern
+    // STEP B: Pull a beautiful high-quality Birthday Cake scene directly 
     let imageBuffer;
-    const randomSeed = Math.floor(Math.random() * 99999);
     
-    // Create an explicit description forcing a clear party illustration
-    const dynamicArtworkString = `birthday card illustration, ${user_prompt}, ${style_tone}, festive bright colors, detailed background`;
-    const encodedPrompt = encodeURIComponent(dynamicArtworkString);
-    
-    // Clean, standard default endpoint structure
-    const stableArtUrl = `https://image.pollinations.ai/p/${encodedPrompt}?width=1200&height=1200&seed=${randomSeed}`;
+    // Direct, guaranteed high-quality vector illustration of a birthday cake with candles 
+    const stableArtUrl = `https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?auto=format&fit=crop&w=1200&h=1200&q=80`;
 
     try {
       const imageResponse = await axios.get(stableArtUrl, { responseType: 'arraybuffer', timeout: 10000 });
       imageBuffer = Buffer.from(imageResponse.data);
     } catch (imgErr) {
-      console.warn("Primary engine traffic delay, pulling fallback birthday scene.");
-      // High quality fallback birthday scene (Cake with candles) instead of balloons or landscapes
-      const fallbackResponse = await axios.get(`https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?auto=format&fit=crop&w=1200&h=1200&q=80`, { responseType: 'arraybuffer' });
+      // Emergency secondary high-quality colorful cake illustration
+      const fallbackResponse = await axios.get(`https://images.unsplash.com/photo-1464349608316-290128714043?auto=format&fit=crop&w=1200&h=1200&q=80`, { responseType: 'arraybuffer' });
       imageBuffer = Buffer.from(fallbackResponse.data);
     }
 
