@@ -80,3 +80,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ status: "error", error: error.message });
   }
 }
+// Cache buster ver 2026.2
