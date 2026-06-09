@@ -1,10 +1,9 @@
 import { GoogleGenAI } from '@google/genai';
-import axios from 'axios';
 
 const ai = new GoogleGenAI({ apiKey: "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q" });
 
 export default async function handler(req, res) {
-  // Completely disable Vercel and browser caching
+  // Enforce zero-caching across all network layers
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -14,7 +13,6 @@ export default async function handler(req, res) {
   }
 
   const user_prompt = req.body?.user_prompt || "A little kid blowing out birthday candles";
-  const style_tone = req.body?.style_tone || "Cute Pixar Cartoon Style";
   const sender_name = req.body?.sender_name || "Uncle Jimmy";
 
   try {
@@ -44,14 +42,14 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: HIGH-SPEED DYNAMIC AI IMAGE ROUTE
+    // STEP 2: STABLE HIGH-SPEED KEYWORD IMAGE MATCH
     // ==========================================
-    // Using a fast, high-availability cluster endpoint that doesn't rate-limit IP subnets
-    const searchParams = encodeURIComponent(`${user_prompt}, ${style_tone}, celebration greeting card graphic, vector art style`);
-    const dynamicAiUrl = `https://image.pollinations.ai/p/${searchParams}?width=512&height=512&nologo=true&private=true`;
+    // Cleans your prompt to extract raw descriptive terms for the high-speed engine
+    const cleanKeywords = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").split(" ").join(",");
+    const permanentImageUrl = `https://loremflickr.com/800/800/${encodeURIComponent(cleanKeywords)}?lock=${Math.floor(Math.random() * 1000)}`;
 
     // ==========================================
-    // STEP 3: OUTPUT SANITIZED SUCCESS PAYLOAD
+    // STEP 3: OUTPUT THE SUCCESS RESPONSIBILITY
     // ==========================================
     return res.status(200).json({
       status: "success",
@@ -60,7 +58,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: dynamicAiUrl
+        stored_image_url: permanentImageUrl
       }
     });
 
