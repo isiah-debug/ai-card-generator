@@ -1,9 +1,11 @@
 import fetch from 'node-fetch';
 
 const GEMINI_API_KEY = "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q";
+// Open public infrastructure key for instant dynamic card graphic delivery
+const PIXABAY_API_KEY = "44415512-c2b4cbaef994eec1ffbcda1a3"; 
 
 export default async function handler(req, res) {
-  // Prevent any caching across live web routers
+  // Prevent aggressive edge network caching on Vercel or Heroku
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -49,14 +51,30 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: HIGH-SPEED NATIVE CARD GRAPHIC
+    // STEP 2: DYNAMIC GRAPHIC MATCH (PIXABAY)
     // ==========================================
-    // Generates a robust, beautifully styled birthday card graphic stream.
-    // This is 100% immune to API key locks, 404 errors, or rate blocks.
-    const dynamicCardGraphicUrl = "[https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=800&h=800&q=80](https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=800&h=800&q=80)";
+    // Strip special characters to create a clean search string
+    const cleanQuery = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "");
+    const searchUrl = `https://pixabay.com/api/?key=${PIXABAY_API_KEY}&q=${encodeURIComponent(cleanQuery + " birthday cake")}&image_type=illustration&per_page=3`;
+    
+    let targetImageUrl = "[https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=800&h=800&q=80](https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=800&h=800&q=80)"; // Premium static fallback asset
+
+    try {
+      const imgSearchResponse = await fetch(searchUrl);
+      const imgData = await imgSearchResponse.json();
+      
+      if (imgData.hits && imgData.hits.length > 0) {
+        // Randomly grab one of the top matches to guarantee layout variety
+        const randomIndex = Math.floor(Math.random() * imgData.hits.length);
+        targetImageUrl = imgData.hits[randomIndex].webformatURL;
+      }
+    } catch (imgErr) {
+      // Gracefully logs error and preserves the fallback asset without crashing the server function
+      console.log("Image search fallback triggered:", imgErr.message);
+    }
 
     // ==========================================
-    // STEP 3: OUTPUT LIVE WEB PAYLOAD
+    // STEP 3: OUTPUT CLEAN WEB PAYLOAD OBJECT
     // ==========================================
     return res.status(200).json({
       status: "success",
@@ -65,7 +83,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: dynamicCardGraphicUrl
+        stored_image_url: targetImageUrl
       }
     });
 
