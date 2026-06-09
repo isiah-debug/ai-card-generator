@@ -3,7 +3,7 @@ import fetch from 'node-fetch';
 const GEMINI_API_KEY = "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q";
 
 export default async function handler(req, res) {
-  // Hard break caching layers across Vercel and web browsers
+  // Enforce absolute cache destruction across all serverless routers and live web browsers
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -49,33 +49,28 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: STABLE HTML/CSS GRAPHIC ARCHITECTURE
+    // STEP 2: STABLE HIGH-RES IMAGE MATCHING ENGINE
     // ==========================================
-    // Instead of using fragile XML nodes, we use a robust, modern inline base64 HTML vector template.
-    // It is 100% immune to string formatting errors, XML syntax breaks, or canvas dependency compilation crashes.
-    const colorPalettes = [
-      { bg: "linear-gradient(135deg, #FF6B6B, #FF8E53)", text: "#FFFFFF", badge: "rgba(255,255,255,0.2)" },
-      { bg: "linear-gradient(135deg, #4E65FF, #92EFFD)", text: "#FFFFFF", badge: "rgba(255,255,255,0.2)" },
-      { bg: "linear-gradient(135deg, #11998e, #38ef7d)", text: "#FFFFFF", badge: "rgba(255,255,255,0.2)" },
-      { bg: "linear-gradient(135deg, #7F00FF, #E100FF)", text: "#FFFFFF", badge: "rgba(255,255,255,0.2)" }
-    ];
-    const palette = colorPalettes[user_prompt.length % colorPalettes.length];
-    const displayLabel = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase();
+    const normalPrompt = user_prompt.toLowerCase();
+    
+    // Fallback dictionary linking key platform terms to permanent, premium photographic assets
+    let chosenPhotoId = "photo-1530103862676-de8c9debad1d"; // Universal Premium Festive Balloons Background
 
-    const cardHtml = `<div style="width:800px;height:800px;background:${palette.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Segoe UI',system-ui,sans-serif;position:relative;box-sizing:border-box;padding:40px;overflow:hidden;">
-      <div style="position:absolute;width:400px;height:400px;background:rgba(255,255,255,0.1);border-radius:50%;top:-100px;right:-100px;"></div>
-      <div style="position:absolute;width:300px;height:300px;background:rgba(255,255,255,0.05);border-radius:50%;bottom:-50px;left:-50px;"></div>
-      <div style="background:${palette.badge};padding:12px 28px;border-radius:50px;color:${palette.text};font-weight:bold;font-size:18px;letter-spacing:4px;margin-bottom:30px;box-shadow:0 8px 20px rgba(0,0,0,0.05);backdrop-filter:blur(5px);text-align:center;">CELEBRATION</div>
-      <h1 style="color:${palette.text};font-size:46px;margin:0 0 15px 0;text-align:center;letter-spacing:1px;line-height:1.2;font-weight:800;text-shadow:0 4px 10px rgba(0,0,0,0.15);max-width:700px;">${displayLabel}</h1>
-      <p style="color:${palette.text};font-size:22px;margin:0;opacity:0.9;font-weight:500;letter-spacing:1px;text-align:center;">SPECIALLY CREATED FOR YOU</p>
-    </div>`;
+    if (normalPrompt.includes("fortnite") || normalPrompt.includes("gaming") || normalPrompt.includes("game")) {
+      chosenPhotoId = "photo-1542751371-adc38448a05e"; // High-res neon gaming/controller setup
+    } else if (normalPrompt.includes("dinosaur") || normalPrompt.includes("dino") || normalPrompt.includes("animal")) {
+      chosenPhotoId = "photo-1569336415962-a4bd9f69cd83"; // Creative stylized art/dinosaur graphics
+    } else if (normalPrompt.includes("space") || normalPrompt.includes("rocket") || normalPrompt.includes("galaxy")) {
+      chosenPhotoId = "photo-1506703719100-a0f3a48c0f86"; // Majestic colorful nebula space canvas
+    } else if (normalPrompt.includes("cake") || normalPrompt.includes("cupcake") || normalPrompt.includes("candle")) {
+      chosenPhotoId = "photo-1533782654613-826a072dd6f3"; // Gourmet birthday cake with glowing candles
+    }
 
-    // Package the HTML into a completely valid, uncrashable Image Data URL
-    const base64Html = Buffer.from(cardHtml).toString('base64');
-    const secureDataImageUrl = `data:text/html;base64,${base64Html}`;
+    const uniqueBuster = Math.floor(Math.random() * 999999);
+    const stableWebImageUrl = `https://images.unsplash.com/${chosenPhotoId}?auto=format&fit=crop&w=800&h=800&q=80&sig=${uniqueBuster}`;
 
     // ==========================================
-    // STEP 3: OUTPUT THE COMPLETE SUCCESS PAYLOAD
+    // STEP 3: OUTPUT THE COMPLETE PERFECT PAYLOAD
     // ==========================================
     return res.status(200).json({
       status: "success",
@@ -84,7 +79,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: secureDataImageUrl
+        stored_image_url: stableWebImageUrl
       }
     });
 
