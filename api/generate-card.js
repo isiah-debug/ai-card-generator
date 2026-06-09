@@ -3,7 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 const ai = new GoogleGenAI({ apiKey: "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q" });
 
 export default async function handler(req, res) {
-  // Absolute cache destruction to force unique results every single request
+  // Hard-destroy caching across Vercel and browser states
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
   try {
     // ==========================================
-    // STEP 1: GENERATE CARD TEXT LAYOUT (GEMINI)
+    // STEP 1: GENERATE CUSTOM CARD TEXT (GEMINI)
     // ==========================================
     let cardTextDetails;
     try {
@@ -42,17 +42,17 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: STABLE GRAPHIC ILLUSTRATION MATCH
+    // STEP 2: TRUE DYNAMIC GRAPHIC REDIRECT
     // ==========================================
-    // Adding graphic, vector, and drawing design markers to the search query parameters
-    const designKeywords = encodeURIComponent(`${user_prompt} birthday greeting card illustration vector graphic drawing`);
-    const uniqueSignature = Math.floor(Math.random() * 999999);
+    // Combines user prompt with card graphic identifiers to hit the open Unsplash keyword engine
+    const searchTerms = encodeURIComponent(`${user_prompt} birthday greeting card illustration vector`);
+    const uniqueSig = Math.floor(Math.random() * 999999);
     
-    // Dynamically structures an unthrottled, premium vector design URL matching your prompt context
-    const permanentImageUrl = `https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=800&h=800&q=80&sig=${uniqueSignature}&q=${designKeywords}`;
+    // Using the flexible source keyword redirect endpoint with a cache-buster signature
+    const permanentImageUrl = `https://source.unsplash.com/featured/800x800/?${searchTerms}&sig=${uniqueSig}`;
 
     // ==========================================
-    // STEP 3: OUTPUT THE COMPLETE RESPONSE PAYLOAD
+    // STEP 3: OUTPUT PAYLOAD OBJECT
     // ==========================================
     return res.status(200).json({
       status: "success",
