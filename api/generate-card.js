@@ -1,23 +1,26 @@
-import { GoogleGenAI } from '@google/genai';
-import axios from 'axios';
+const { GoogleGenAI } = require('@google/genai');
+const http = require('https');
 
+// Initialize the core text layout generation client
 const ai = new GoogleGenAI({ apiKey: "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q" });
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
+  // Clear any existing cache configurations explicitly via response headers
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Cache buster variable to force Vercel to rebuild the function completely
-  const _forceVercelRebuildTime = "2026-06-09T22:57:00"; 
-
-  const user_prompt = req.body.user_prompt || "A little kid blowing out birthday candles";
-  const style_tone = req.body.style_tone || "Cute Pixar Cartoon Style";
-  const sender_name = req.body.sender_name || "Uncle Jimmy";
+  const user_prompt = req.body?.user_prompt || "A little kid blowing out birthday candles";
+  const style_tone = req.body?.style_tone || "Cute Pixar Cartoon Style";
+  const sender_name = req.body?.sender_name || "Uncle Jimmy";
 
   try {
     // ==========================================
-    // STEP 1: GENERATE CUSTOM CARD TEXT (GEMINI)
+    // STEP 1: GENERATE CARD TEXT LAYOUT
     // ==========================================
     const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown codeblocks or backticks.`;
     
@@ -42,41 +45,14 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: FETCH NEW AI IMAGE IN BINARY
+    // STEP 2: GENERATE REAL-TIME DYNAMIC AI LINK
     // ==========================================
-    const sanitizedPrompt = encodeURIComponent(`${user_prompt}, ${style_tone}, vibrant celebration colors, high resolution greeting card`);
-    const aiImageGenerationUrl = `https://image.pollinations.ai/p/${sanitizedPrompt}?width=800&height=800&seed=${Date.now()}&nologo=true`;
+    // Generates a unique, real-time AI image url based strictly on your text inputs.
+    // Zero dependencies, zero third-party upload servers, zero quota risks.
+    const uniqueSeed = Math.floor(Math.random() * 1000000);
+    const sanitizedPrompt = encodeURIComponent(`${user_prompt}, ${style_tone}, high resolution vector illustration, holiday greeting card`);
+    const dynamicAiUrl = `https://image.pollinations.ai/p/${sanitizedPrompt}?width=800&height=800&seed=${uniqueSeed}&nologo=true`;
 
-    const aiResponse = await axios({
-      method: 'get',
-      url: aiImageGenerationUrl,
-      responseType: 'arraybuffer'
-    });
-
-    const imageBuffer = Buffer.from(aiResponse.data);
-
-    // ==========================================
-    // STEP 3: UPLOAD RAW IMAGE BUFFER TO IMGUR
-    // ==========================================
-    const base64Image = imageBuffer.toString('base64');
-    
-    const imgurResponse = await axios({
-      method: 'post',
-      url: '[https://api.imgur.com/3/image](https://api.imgur.com/3/image)',
-      headers: {
-        'Authorization': 'Client-ID fc130c24cb3cd79'
-      },
-      data: {
-        image: base64Image,
-        type: 'base64'
-      }
-    });
-
-    const permanentImageUrl = imgurResponse.data.data.link;
-
-    // ==========================================
-    // STEP 4: RETURN THE SUCCESS DATA OBJECT
-    // ==========================================
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
@@ -84,11 +60,11 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: permanentImageUrl
+        stored_image_url: dynamicAiUrl
       }
     });
 
   } catch (error) {
     return res.status(500).json({ status: "error", error: error.message });
   }
-}
+};
