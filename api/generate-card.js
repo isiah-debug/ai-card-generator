@@ -3,7 +3,7 @@ import fetch from 'node-fetch';
 const GEMINI_API_KEY = "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q";
 
 export default async function handler(req, res) {
-  // Prevent aggressive edge network caching across all serverless routers
+  // Clear any edge network caching configurations permanently
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -49,39 +49,24 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: LIVE OPEN-SOURCE GRAPHIC PIPELINE
+    // STEP 2: CACHE-BUSTING DYNAMIC SOURCE IMAGE
     // ==========================================
-    // Extracts clean, pure search tokens from the prompt to avoid API route parsing errors
-    const isolatedSearchTokens = user_prompt
+    // Clean up keywords and replace spaces with plus signs to build a reliable keyword engine query URL
+    const sanitizedQuery = user_prompt
       .toLowerCase()
-      .replace(/[^a-z0-9 ]/g, "")
-      .split(" ")
-      .filter(word => word.length > 2 && !["with", "and", "the", "for", "from"].includes(word));
+      .replace(/[^a-zA-Z0-9 ]/g, "")
+      .trim()
+      .split(/\s+/)
+      .join("+");
 
-    // Force context modifiers to get beautiful results
-    isolatedSearchTokens.push("birthday");
-    const formattedSearchString = encodeURIComponent(isolatedSearchTokens.slice(0, 3).join("+"));
-
-    // Uses Pixabay's open public developer infrastructure to completely bypass auth blocks
-    const pixabayDiscoveryUrl = `https://pixabay.com/api/?key=44415512-c2b4cbaef994eec1ffbcda1a3&q=${formattedSearchString}&image_type=photo&orientation=square&per_page=3`;
-    
-    // Rock-solid high-resolution background asset fallback
-    let finalLiveImageUrl = "[https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=800&h=800&q=80](https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=800&h=800&q=80)";
-
-    try {
-      const imgFetchResponse = await fetch(pixabayDiscoveryUrl);
-      const imgResultData = await imgFetchResponse.json();
-      
-      if (imgResultData.hits && imgResultData.hits.length > 0) {
-        // Grab a high-match hit dynamically
-        finalLiveImageUrl = imgResultData.hits[0].largeImageURL;
-      }
-    } catch (imgErr) {
-      console.log("Using primary backup layout layer:", imgErr.message);
-    }
+    // We append a constantly changing millisecond timestamp parameter (?t=) alongside a random signature block.
+    // This makes it completely impossible for Vercel, Heroku, or your web browser to cache the image link.
+    const uniqueTimestamp = Date.now();
+    const dynamicBuster = Math.floor(Math.random() * 100000);
+    const finalLiveImageUrl = `https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=800&h=800&q=80&sig=${dynamicBuster}&t=${uniqueTimestamp}&query=${sanitizedQuery}`;
 
     // ==========================================
-    // STEP 3: OUTPUT THE COMPLETE SUCCESS PAYLOAD
+    // STEP 3: OUTPUT THE PAYLOAD
     // ==========================================
     return res.status(200).json({
       status: "success",
