@@ -1,9 +1,7 @@
 import fetch from 'node-fetch';
 
-const GEMINI_API_KEY = "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q";
-
 export default async function handler(req, res) {
-  // Clear any edge caching across serverless environments
+  // Hard break caching layers across Vercel and web browsers
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -17,9 +15,8 @@ export default async function handler(req, res) {
 
   try {
     // ==========================================
-    // STEP 1: RESILIENT DATA GENERATION (GEMINI)
+    // STEP 1: OPENROUTER AUTHENTICATED PIPELINE
     // ==========================================
-    // Explicitly instructs Gemini to output clean string patterns without library schema dependencies
     const generationPrompt = `Create a custom birthday card layout based on this theme: "${user_prompt}". 
     Return a raw JSON object ONLY with these exact keys:
     "headline_greeting": "A short, catchy card front title",
@@ -28,27 +25,31 @@ export default async function handler(req, res) {
     "svg_graphic_code": "Write a beautifully designed raw XML SVG element (width='800' height='800') containing vector paths, gradients, rectangles, or shapes representing the theme: '${user_prompt}'. Make sure it uses modern, vibrant colors matching a birthday theme and has a clear colored background."
     
     Do NOT include any markdown codeblocks, backticks, or text outside the JSON object. Return raw JSON only.`;
+
+    // Accessing an unthrottled global edge route for Gemini 2.5 Flash
+    const openRouterUrl = "https://openrouter.ai/api/v1/chat/completions";
     
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-    
-    const geminiResponse = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const apiResponse = await fetch(openRouterUrl, {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer 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",
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: generationPrompt }] }]
+        model: "google/gemini-2.5-flash",
+        messages: [{ role: "user", content: generationPrompt }]
       })
     });
 
-    const geminiData = await geminiResponse.json();
+    const responseData = await apiResponse.json();
 
-    // Catch clear API authorization issues upfront
-    if (geminiData.error) {
-      return res.status(401).json({ status: "error", error: geminiData.error.message });
+    if (responseData.error) {
+      return res.status(400).json({ status: "error", error: responseData.error.message });
     }
 
-    let rawText = geminiData.candidates[0].content.parts[0].text.trim();
+    let rawText = responseData.choices[0].message.content.trim();
     
-    // Extracted sanitization layer to pull out valid JSON even if markdown backticks creep in
+    // Self-sanitizing regex layer to extract raw JSON if markdown blocks crawl in
     if (rawText.includes("```")) {
       const openIndex = rawText.indexOf("{");
       const closeIndex = rawText.lastIndexOf("}");
@@ -60,9 +61,8 @@ export default async function handler(req, res) {
     const parsedData = JSON.parse(rawText);
 
     // ==========================================
-    // STEP 2: COMPOSE CACHE-PROOF DATA URL
+    // STEP 2: COMPOSE DATA IMAGE LINK
     // ==========================================
-    // Conversions handle text characters cleanly without breaking image sources
     const base64Svg = Buffer.from(parsedData.svg_graphic_code).toString('base64');
     const secureDataImageUrl = `data:image/svg+xml;base64,${base64Svg}`;
 
