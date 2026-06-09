@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
   try {
     // ==========================================
-    // STEP 1: GENERATE CUSTOM TEXT (GEMINI 2.5)
+    // STEP 1: GENERATE CUSTOM TEXT (GEMINI)
     // ==========================================
     const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown codeblocks or backticks.`;
     
@@ -44,16 +44,21 @@ export default async function handler(req, res) {
     // ==========================================
     // STEP 2: GENERATE REAL IMAGE WITH AI (POLLINATIONS)
     // ==========================================
-    // Creating a clean, URL-safe prompt for the image generator engine
-    const sanitizedPrompt = encodeURIComponent(`${user_prompt}, ${style_tone}, vibrant celebration colors, high resolution greeting card`);
-    const aiImageGenerationUrl = `https://image.pollinations.ai/p/${sanitizedPrompt}?width=800&height=800&seed=${Date.now()}&nologo=true`;
+    let imageBuffer;
+    try {
+      const sanitizedPrompt = encodeURIComponent(`${user_prompt}, ${style_tone}, vibrant celebration colors, high resolution greeting card`);
+      const aiImageGenerationUrl = `https://image.pollinations.ai/p/${sanitizedPrompt}?width=800&height=800&seed=${Date.now()}&nologo=true`;
 
-    // Download the freshly generated AI image directly as an array buffer
-    const aiImageResponse = await axios.get(aiImageGenerationUrl, { responseType: 'arraybuffer' });
-    const imageBuffer = Buffer.from(aiImageResponse.data);
+      const aiImageResponse = await axios.get(aiImageGenerationUrl, { responseType: 'arraybuffer' });
+      imageBuffer = Buffer.from(aiImageResponse.data);
+    } catch (imgError) {
+      // Emergency solid colored placeholder fallback buffer if the generation API drops
+      const fallbackHex = "89504e470d0a1a0a0000000d49484452000000020000000208020000000d0d15e50000000c49444154789c6360dc60000002040001272f22ac0000000049454e44ae426082";
+      imageBuffer = Buffer.from(fallbackHex, 'hex');
+    }
 
     // ==========================================
-    // STEP 3: UPLOAD AI IMAGE TO SUPABASE
+    // STEP 3: UPLOAD FRESH AI IMAGE TO SUPABASE
     // ==========================================
     const uniqueFileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${uniqueFileName}`;
@@ -66,11 +71,10 @@ export default async function handler(req, res) {
       }
     });
 
-    // The unique, permanent URL to your newly created AI graphic file
     const permanentImageUrl = `${SUPABASE_URL}/storage/v1/object/public/card-art/${uniqueFileName}`;
 
     // ==========================================
-    // STEP 4: RETURN THE FINISHED PAYLOAD
+    // STEP 4: RETURN RESPONSIBLE SUCCESS OBJECT
     // ==========================================
     return res.status(200).json({
       status: "success",
