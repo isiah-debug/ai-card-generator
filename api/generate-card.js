@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import axios from 'axios';
 
-// Initializing the master Google AI ecosystem controller
+// Initializing the Google Gen AI SDK
 const ai = new GoogleGenAI({ apiKey: "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q" });
 
 export default async function handler(req, res) {
@@ -43,34 +43,35 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: GENERATE REAL IMAGE WITH AI (IMAGEN)
+    // STEP 2: GENERATE REAL IMAGE WITH IMAGEN
     // ==========================================
     let imageBuffer;
     try {
-      // Combined prompt engineering to feed the image model model
-      const finalVisualPrompt = `A high-quality birthday card design representing: ${user_prompt}. Artistic style: ${style_tone}. Vibrant colors, festive theme.`;
+      const finalVisualPrompt = `A festive birthday card graphic showing: ${user_prompt}. Artistic style: ${style_tone}. High resolution vector illustration.`;
       
-      const imageResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image', // Google's image generation target model
-        contents: finalVisualPrompt,
+      // Using the correct Imagen model designation via generateImages
+      const imageResponse = await ai.models.generateImages({
+        model: 'imagen-3.0-generate-002', 
+        prompt: finalVisualPrompt,
+        config: {
+          numberOfImages: 1,
+          outputMimeType: 'image/png',
+          aspectRatio: '1:1',
+        },
       });
 
-      // Extract the raw binary image data directly from the generated AI response parts
-      let imagePart = imageResponse.candidates[0].content.parts.find(part => part.inlineData);
-      
-      if (imagePart && imagePart.inlineData) {
-        imageBuffer = Buffer.from(imagePart.inlineData.data, 'base64');
-      } else {
-        throw new Error("No inline image stream returned from Google model.");
-      }
+      // Extract the base64 image data directly from the proper SDK response structure
+      const base64Data = imageResponse.generatedImages[0].image.imageBytes;
+      imageBuffer = Buffer.from(base64Data, 'base64');
     } catch (imageGenError) {
-      // Hardcoded rescue image buffer path if your key hits structural model limits
-      const fallbackResponse = await axios.get('[https://i.imgur.com/8Z6B6W2.png](https://i.imgur.com/8Z6B6W2.png)', { responseType: 'arraybuffer' });
-      imageBuffer = Buffer.from(fallbackResponse.data);
+      // Corrected fallback logic: statically generates a solid 2x2 colored placeholder image via buffer
+      // This completely avoids hitting external domains or throwing "Invalid URL" errors if generation fails
+      const fallbackHex = "89504e470d0a1a0a0000000d49484452000000020000000208020000000d0d15e50000000c49444154789c6360dc60000002040001272f22ac0000000049454e44ae426082";
+      imageBuffer = Buffer.from(fallbackHex, 'hex');
     }
 
     // ==========================================
-    // STEP 3: UPLOAD RAW IMAGE BUFFER TO SUPABASE
+    // STEP 3: UPLOAD THE GENERATED BUFFER TO SUPABASE
     // ==========================================
     const uniqueFileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${uniqueFileName}`;
@@ -83,11 +84,11 @@ export default async function handler(req, res) {
       }
     });
 
-    // The live authenticated public reference string url
+    // Construct the direct public URL path
     const permanentImageUrl = `${SUPABASE_URL}/storage/v1/object/public/card-art/${uniqueFileName}`;
 
     // ==========================================
-    // STEP 4: RETURN THE SUCCESS DATA OBJECT
+    // STEP 4: RETURN THE RESPONSE
     // ==========================================
     return res.status(200).json({
       status: "success",
