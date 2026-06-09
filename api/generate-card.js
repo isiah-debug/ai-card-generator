@@ -1,11 +1,9 @@
-const { GoogleGenAI } = require('@google/genai');
-const http = require('https');
+import { GoogleGenAI } from '@google/genai';
 
-// Initialize the core text layout generation client
 const ai = new GoogleGenAI({ apiKey: "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q" });
 
-module.exports = async (req, res) => {
-  // Clear any existing cache configurations explicitly via response headers
+export default async function handler(req, res) {
+  // Clear any existing cache configurations explicitly
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -20,12 +18,12 @@ module.exports = async (req, res) => {
 
   try {
     // ==========================================
-    // STEP 1: GENERATE CARD TEXT LAYOUT
+    // STEP 1: GENERATE CUSTOM CARD TEXT (GEMINI)
     // ==========================================
-    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown codeblocks or backticks.`;
-    
     let cardTextDetails;
     try {
+      const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown codeblocks or backticks.`;
+      
       const textResponse = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: textPrompt,
@@ -45,10 +43,10 @@ module.exports = async (req, res) => {
     }
 
     // ==========================================
-    // STEP 2: GENERATE REAL-TIME DYNAMIC AI LINK
+    // STEP 2: DYNAMIC REAL-TIME AI LINK
     // ==========================================
     // Generates a unique, real-time AI image url based strictly on your text inputs.
-    // Zero dependencies, zero third-party upload servers, zero quota risks.
+    // Zero dependencies, zero upload servers, zero quota risks.
     const uniqueSeed = Math.floor(Math.random() * 1000000);
     const sanitizedPrompt = encodeURIComponent(`${user_prompt}, ${style_tone}, high resolution vector illustration, holiday greeting card`);
     const dynamicAiUrl = `https://image.pollinations.ai/p/${sanitizedPrompt}?width=800&height=800&seed=${uniqueSeed}&nologo=true`;
@@ -67,4 +65,4 @@ module.exports = async (req, res) => {
   } catch (error) {
     return res.status(500).json({ status: "error", error: error.message });
   }
-};
+}
