@@ -9,9 +9,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Extract body variables safely
-  const user_prompt = req.body.user_prompt || "A young boy blowing out candles on a birthday cake";
-  const style_tone = req.body.style_tone || "Festive";
+  // Fallback defaults if fields are missing
+  const user_prompt = req.body.user_prompt || "A young boy smiling surrounded by family blowing out candles on a birthday cake";
+  const style_tone = req.body.style_tone || "Anime Art";
   const sender_name = req.body.sender_name || "Mom and Dad";
 
   const SUPABASE_URL = "https://pwaziqkamplowuywamik.supabase.co"; 
@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
   try {
     // STEP A: Ask Gemini to generate heartwarming birthday card text
-    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include gaming terminology, markdown formatting, or backticks.`;
+    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". The visual style is "${style_tone}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include gaming terminology, attack stats, markdown formatting, or backticks.`;
     
     let cardTextDetails;
     try {
@@ -41,22 +41,31 @@ export default async function handler(req, res) {
       };
     }
 
-    // STEP B: Instantly fetch a beautiful, relevant 4"x4" birthday photo
+    // STEP B: Fetch a dynamic image generated exactly from your prompt using Hugging Face's open AI router
     let imageBuffer;
     
-    // We target high-quality birthday imagery based on what you are creating
-    const instantImageUrl = `https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=1200&h=1200&q=80`;
+    // Build an ultra-descriptive prompt for the generator to get exactly what you want
+    const finalImageDescription = `A beautiful, clean illustration of ${user_prompt}, ${style_tone} style, bright happy celebratory colors, detailed graphic design, vector poster art style, 4x4 ratio square aspect`;
+    
+    // We target the stable dynamic model pipeline hosted publicly by HuggingFace
+    const publicHfApiUrl = `https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell`;
 
     try {
-      const imageResponse = await axios.get(instantImageUrl, { responseType: 'arraybuffer' });
-      imageBuffer = Buffer.from(imageResponse.data);
+      const hfResponse = await axios.post(
+        publicHfApiUrl,
+        { inputs: finalImageDescription },
+        { responseType: 'arraybuffer', timeout: 15000 }
+      );
+      imageBuffer = Buffer.from(hfResponse.data);
     } catch (imgErr) {
-      // Emergency secondary high-quality birthday cake image fallback
-      const fallbackResponse = await axios.get(`https://images.unsplash.com/photo-1464349608316-290128714043?auto=format&fit=crop&w=1200&h=1200&q=80`, { responseType: 'arraybuffer' });
-      imageBuffer = Buffer.from(fallbackResponse.data);
+      console.warn("Primary AI generator busy, pulling dynamic fallback engine...");
+      // Fallback to a fast public text-to-image mirror to ensure it never returns generic landscape/balloons
+      const mirrorUrl = `https://image.pollinations.ai/p/${encodeURIComponent(finalImageDescription)}?width=1200&height=1200&nologo=true`;
+      const mirrorResponse = await axios.get(mirrorUrl, { responseType: 'arraybuffer' });
+      imageBuffer = Buffer.from(mirrorResponse.data);
     }
 
-    // STEP C: Push the image directly to your Supabase storage bucket
+    // STEP C: Push the custom generated birthday image directly to Supabase storage
     const fileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${fileName}`;
 
@@ -70,7 +79,7 @@ export default async function handler(req, res) {
 
     const permanentImageUrl = `${SUPABASE_URL}/storage/v1/object/public/card-art/${fileName}`;
 
-    // STEP D: Output the unified success package back to your testing screen
+    // STEP D: Output the unified, complete success package
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
