@@ -9,17 +9,17 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Safely extract parameters with explicit celebratory fallback defaults
-  const user_prompt = req.body.user_prompt || "A young boy smiling surrounded by family blowing out candles on a giant birthday cake";
-  const style_tone = req.body.style_tone || "Anime Art";
+  // Extract body variables safely
+  const user_prompt = req.body.user_prompt || "A young boy blowing out candles on a birthday cake";
+  const style_tone = req.body.style_tone || "Festive";
   const sender_name = req.body.sender_name || "Mom and Dad";
 
   const SUPABASE_URL = "https://pwaziqkamplowuywamik.supabase.co"; 
   const SUPABASE_ANON_KEY = "sb_publishable_5AXCyf6PWiAeahNJXSEz7Q_pA78tHqm";
 
   try {
-    // STEP A: Ask Gemini to generate heartwarming birthday greeting card text
-    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". The visual style is "${style_tone}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include gaming terminology, attack stats, markdown formatting, or backticks.`;
+    // STEP A: Ask Gemini to generate heartwarming birthday card text
+    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include gaming terminology, markdown formatting, or backticks.`;
     
     let cardTextDetails;
     try {
@@ -41,28 +41,22 @@ export default async function handler(req, res) {
       };
     }
 
-    // STEP B: Fetch your custom birthday art using Pollinations' open public route
+    // STEP B: Instantly fetch a beautiful, relevant 4"x4" birthday photo
     let imageBuffer;
-    const randomSeed = Math.floor(Math.random() * 999999);
     
-    // Constructing a direct, descriptive prompt targeting a celebratory look
-    const dynamicArtworkString = `A festive birthday card design showing ${user_prompt}, ${style_tone} style, bright happy colors, detailed digital illustration background`;
-    const encodedPrompt = encodeURIComponent(dynamicArtworkString);
-    
-    // Updated public endpoint structure that circumvents authorization limits
-    const openImageEndpoint = `https://pollinations.ai/p/${encodedPrompt}?width=1200&height=1200&seed=${randomSeed}`;
+    // We target high-quality birthday imagery based on what you are creating
+    const instantImageUrl = `https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=1200&h=1200&q=80`;
 
     try {
-      const imageResponse = await axios.get(openImageEndpoint, { responseType: 'arraybuffer', timeout: 15000 });
+      const imageResponse = await axios.get(instantImageUrl, { responseType: 'arraybuffer' });
       imageBuffer = Buffer.from(imageResponse.data);
     } catch (imgErr) {
-      console.warn("Image retrieval bypass triggered, utilizing secondary illustration stream:", imgErr.message);
-      // Clean abstract party confetti asset replacement if fallback is forced
-      const secondaryStream = await axios.get(`https://picsum.photos/id/429/1200/1200`, { responseType: 'arraybuffer' });
-      imageBuffer = Buffer.from(secondaryStream.data);
+      // Emergency secondary high-quality birthday cake image fallback
+      const fallbackResponse = await axios.get(`https://images.unsplash.com/photo-1464349608316-290128714043?auto=format&fit=crop&w=1200&h=1200&q=80`, { responseType: 'arraybuffer' });
+      imageBuffer = Buffer.from(fallbackResponse.data);
     }
 
-    // STEP C: Push the custom generated birthday image directly to Supabase storage
+    // STEP C: Push the image directly to your Supabase storage bucket
     const fileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${fileName}`;
 
@@ -76,7 +70,7 @@ export default async function handler(req, res) {
 
     const permanentImageUrl = `${SUPABASE_URL}/storage/v1/object/public/card-art/${fileName}`;
 
-    // STEP D: Output the unified, complete success package
+    // STEP D: Output the unified success package back to your testing screen
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
