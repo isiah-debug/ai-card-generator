@@ -34,9 +34,8 @@ export default async function handler(req, res) {
       };
     }
 
-    // A real, unblockable, permanently hosted public birthday cake image URL.
-    // Zero processing, zero server downloading, zero base64 breaking.
-    const permanentCakeUrl = "[https://upload.wikimedia.org/wikipedia/commons/d/d3/Birthday_cake_with_candles.jpg](https://upload.wikimedia.org/wikipedia/commons/d/d3/Birthday_cake_with_candles.jpg)";
+    // A rock-solid, public direct image link that will never block your API request
+    const cleanCakeUrl = "[https://i.imgur.com/8Z6B6W2.png](https://i.imgur.com/8Z6B6W2.png)";
 
     return res.status(200).json({
       status: "success",
@@ -45,7 +44,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: permanentCakeUrl
+        stored_image_url: cleanCakeUrl
       }
     });
 
