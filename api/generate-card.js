@@ -8,6 +8,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Cache buster variable to force Vercel to rebuild the function completely
+  const _forceVercelRebuildTime = "2026-06-09T22:57:00"; 
+
   const user_prompt = req.body.user_prompt || "A little kid blowing out birthday candles";
   const style_tone = req.body.style_tone || "Cute Pixar Cartoon Style";
   const sender_name = req.body.sender_name || "Uncle Jimmy";
@@ -55,14 +58,12 @@ export default async function handler(req, res) {
     // ==========================================
     // STEP 3: UPLOAD RAW IMAGE BUFFER TO IMGUR
     // ==========================================
-    // Sending the image as an anonymous base64 payload to Imgur's open upload API
     const base64Image = imageBuffer.toString('base64');
     
     const imgurResponse = await axios({
       method: 'post',
       url: '[https://api.imgur.com/3/image](https://api.imgur.com/3/image)',
       headers: {
-        // Using an open fallback client ID for automated hosting
         'Authorization': 'Client-ID fc130c24cb3cd79'
       },
       data: {
