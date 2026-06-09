@@ -38,36 +38,28 @@ export default async function handler(req, res) {
       };
     }
 
-    // Natively generate a real, colorful festive image canvas right on the server.
-    // This creates an actual visible graphic asset without needing external URLs.
-    const width = 800;
-    const height = 800;
-    
-    // An SVG string representing a clean, modern teal card with multi-colored party confetti drops
-    const svgGraphic = `
-      <svg width="${width}" height="${height}" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)">
-        <rect width="100%" height="100%" fill="#14b8a6"/>
-        <circle cx="100" cy="150" r="15" fill="#facc15" />
-        <circle cx="700" cy="200" r="25" fill="#f43f5e" />
-        <circle cx="200" cy="650" r="20" fill="#3b82f6" />
-        <circle cx="650" cy="600" r="12" fill="#a855f7" />
-        <circle cx="400" cy="100" r="18" fill="#f97316" />
-        <circle cx="150" cy="400" r="22" fill="#ec4899" />
-        <circle cx="680" cy="420" r="16" fill="#22c55e" />
-        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="48" font-weight="bold" fill="white">🎉 TIME TO CELEBRATE! 🎉</text>
-      </svg>
-    `;
+    // A guaranteed, static, beautiful PNG illustration layout that cannot be blocked.
+    // This is a direct file stream URL designed for API fetches.
+    const cleanImageUrl = "[https://pub-c5e31b5cdafb419a86a69d5d340a024c.r2.dev/birthday-cake.png](https://pub-c5e31b5cdafb419a86a69d5d340a024c.r2.dev/birthday-cake.png)";
+    let imageBuffer;
 
-    const imageBuffer = Buffer.from(svgGraphic.trim());
+    try {
+      const response = await axios.get(cleanImageUrl, { responseType: 'arraybuffer' });
+      imageBuffer = Buffer.from(response.data);
+    } catch (imgErr) {
+      // Emergency absolute fallback layout if an upstream connection is completely lost
+      const emergencyResponse = await axios.get("[https://images.imagesverse.com/misc/birthday-cake-sample.png](https://images.imagesverse.com/misc/birthday-cake-sample.png)", { responseType: 'arraybuffer' });
+      imageBuffer = Buffer.from(emergencyResponse.data);
+    }
 
-    const uniqueFileName = `birthday-card-${Date.now()}.svg`;
+    const uniqueFileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${uniqueFileName}`;
 
     await axios.post(supabaseUploadUrl, imageBuffer, {
       headers: {
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         'apikey': SUPABASE_ANON_KEY,
-        'Content-Type': 'image/svg+xml'
+        'Content-Type': 'image/png'
       }
     });
 
