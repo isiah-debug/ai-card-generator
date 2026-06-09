@@ -42,23 +42,22 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: GENERATE REAL IMAGE WITH AI (POLLINATIONS)
+    // STEP 2: FETCH NEW AI IMAGE IN BINARY
     // ==========================================
-    let imageBuffer;
-    try {
-      const sanitizedPrompt = encodeURIComponent(`${user_prompt}, ${style_tone}, vibrant celebration colors, high resolution greeting card`);
-      const aiImageGenerationUrl = `https://image.pollinations.ai/p/${sanitizedPrompt}?width=800&height=800&seed=${Date.now()}&nologo=true`;
+    const sanitizedPrompt = encodeURIComponent(`${user_prompt}, ${style_tone}, vibrant celebration colors, high resolution greeting card`);
+    const aiImageGenerationUrl = `https://image.pollinations.ai/p/${sanitizedPrompt}?width=800&height=800&seed=${Date.now()}&nologo=true`;
 
-      const aiImageResponse = await axios.get(aiImageGenerationUrl, { responseType: 'arraybuffer' });
-      imageBuffer = Buffer.from(aiImageResponse.data);
-    } catch (imgError) {
-      // Emergency solid colored placeholder fallback buffer if the generation API drops
-      const fallbackHex = "89504e470d0a1a0a0000000d49484452000000020000000208020000000d0d15e50000000c49444154789c6360dc60000002040001272f22ac0000000049454e44ae426082";
-      imageBuffer = Buffer.from(fallbackHex, 'hex');
-    }
+    // CRITICAL FIX: Explicitly forcing arraybuffer data capture
+    const aiResponse = await axios({
+      method: 'get',
+      url: aiImageGenerationUrl,
+      responseType: 'arraybuffer'
+    });
+
+    const imageBuffer = Buffer.from(aiResponse.data);
 
     // ==========================================
-    // STEP 3: UPLOAD FRESH AI IMAGE TO SUPABASE
+    // STEP 3: UPLOAD FRESH BINARY TO SUPABASE
     // ==========================================
     const uniqueFileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${uniqueFileName}`;
@@ -74,7 +73,7 @@ export default async function handler(req, res) {
     const permanentImageUrl = `${SUPABASE_URL}/storage/v1/object/public/card-art/${uniqueFileName}`;
 
     // ==========================================
-    // STEP 4: RETURN RESPONSIBLE SUCCESS OBJECT
+    // STEP 4: RETURN RESPONSIBLE PAYLOAD
     // ==========================================
     return res.status(200).json({
       status: "success",
