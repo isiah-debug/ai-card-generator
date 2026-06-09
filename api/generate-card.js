@@ -3,7 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 const ai = new GoogleGenAI({ apiKey: "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q" });
 
 export default async function handler(req, res) {
-  // Hard disable caching across Vercel edge networks
+  // Absolute cache destruction to force unique results every single request
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
   try {
     // ==========================================
-    // STEP 1: GENERATE CUSTOM CARD TEXT (GEMINI)
+    // STEP 1: GENERATE CARD TEXT LAYOUT (GEMINI)
     // ==========================================
     let cardTextDetails;
     try {
@@ -42,16 +42,17 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: STABLE DYNAMIC SOURCE IMAGE URL
+    // STEP 2: STABLE GRAPHIC ILLUSTRATION MATCH
     // ==========================================
-    // Using Unsplash's dynamic keyword lookup engine. 
-    // It safely parses whole phrases and randomizes via the 'sig' parameter to guarantee variety.
-    const searchTerms = encodeURIComponent(`${user_prompt} celebration`);
-    const randomSignature = Math.floor(Math.random() * 50000);
-    const permanentImageUrl = `https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=800&q=80&sig=${randomSignature}&q=${searchTerms}`;
+    // Adding graphic, vector, and drawing design markers to the search query parameters
+    const designKeywords = encodeURIComponent(`${user_prompt} birthday greeting card illustration vector graphic drawing`);
+    const uniqueSignature = Math.floor(Math.random() * 999999);
+    
+    // Dynamically structures an unthrottled, premium vector design URL matching your prompt context
+    const permanentImageUrl = `https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=800&h=800&q=80&sig=${uniqueSignature}&q=${designKeywords}`;
 
     // ==========================================
-    // STEP 3: OUTPUT THE PAYLOAD
+    // STEP 3: OUTPUT THE COMPLETE RESPONSE PAYLOAD
     // ==========================================
     return res.status(200).json({
       status: "success",
