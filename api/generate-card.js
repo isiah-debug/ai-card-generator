@@ -3,7 +3,7 @@ import fetch from 'node-fetch';
 const GEMINI_API_KEY = "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q";
 
 export default async function handler(req, res) {
-  // Hard disable caching across Vercel/Heroku edge networks
+  // Force strict cache destruction across all serverless routers and browsers
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
   try {
     // ==========================================
-    // STEP 1: NATIVE GEMINI TEXT CUSTOMIZATION
+    // STEP 1: NATIVE GEMINI TEXT GENERATION
     // ==========================================
     const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown codeblocks, formatting, or backticks.`;
     
@@ -49,24 +49,27 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: DYNAMIC UNTHROTTLED FEATURED ENGINE
+    // STEP 2: CACHE-PROOF IMAGE DIRECTORY PATH
     // ==========================================
-    // Sanitizes strings and transforms multi-word sentences into comma-delimited tokens
-    const isolatedKeywords = user_prompt
+    // Extracts descriptive elements and filters out small connecting words
+    const cleanKeywords = user_prompt
       .toLowerCase()
       .replace(/[^a-z0-9 ]/g, "")
       .split(" ")
-      .filter(word => word.length > 2 && !["with", "and", "the", "for", "from", "cute"].includes(word))
-      .join(",");
+      .filter(word => word.length > 2 && !["with", "and", "the", "for", "from", "cute"].includes(word));
 
-    const baselineTags = isolatedKeywords ? isolatedKeywords : "celebration";
-    const cacheBusterSig = Math.floor(Math.random() * 999999);
+    // Force strict visual card modifiers into the keyword array
+    cleanKeywords.push("birthday", "illustration", "vector");
 
-    // Using Unsplash's live, unthrottled global keyword featured route directory
-    const permanentImageUrl = `https://images.unsplash.com/featured/800x800/?birthday,illustration,${baselineTags}&sig=${cacheBusterSig}`;
+    // Joining keywords with commas creates a unique path identifier that bypasses all network caches
+    const uniquelyMappedPath = encodeURIComponent(cleanKeywords.join(","));
+    const uniqueBuster = Math.floor(Math.random() * 999999);
+
+    // Dynamic path-based routing engine
+    const permanentImageUrl = `https://images.unsplash.com/featured/800x800/?${uniquelyMappedPath}&sig=${uniqueBuster}`;
 
     // ==========================================
-    // STEP 3: SANITIZED WEB SUCCESS OBJECT
+    // STEP 3: OUTPUT LIVE WEB PAYLOAD
     // ==========================================
     return res.status(200).json({
       status: "success",
