@@ -41,28 +41,28 @@ export default async function handler(req, res) {
       };
     }
 
-    // STEP B: Generate customized artwork directly from your prompt using an open, keyless endpoint
+    // STEP B: Generate customized artwork using Pollinations' clean default endpoint pattern
     let imageBuffer;
     const randomSeed = Math.floor(Math.random() * 99999);
     
     // Create an explicit description forcing a clear party illustration
-    const dynamicArtworkString = `birthday greeting card illustration of ${user_prompt}, ${style_tone} style, festive bright colors, detailed digital artwork`;
+    const dynamicArtworkString = `birthday card illustration, ${user_prompt}, ${style_tone}, festive bright colors, detailed background`;
     const encodedPrompt = encodeURIComponent(dynamicArtworkString);
     
-    // Keyless, open routing endpoint designed for instant asset generation
-    const stableArtUrl = `https://image.pollinations.ai/p/${encodedPrompt}?width=1200&height=1200&seed=${randomSeed}&model=flux`;
+    // Clean, standard default endpoint structure
+    const stableArtUrl = `https://image.pollinations.ai/p/${encodedPrompt}?width=1200&height=1200&seed=${randomSeed}`;
 
     try {
-      const imageResponse = await axios.get(stableArtUrl, { responseType: 'arraybuffer', timeout: 12000 });
+      const imageResponse = await axios.get(stableArtUrl, { responseType: 'arraybuffer', timeout: 10000 });
       imageBuffer = Buffer.from(imageResponse.data);
     } catch (imgErr) {
-      console.warn("Primary engine traffic delay, pulling uncompressed backup stream.");
-      // Absolute fallback: high-quality colorful party illustration canvas
-      const fallbackResponse = await axios.get(`https://images.unsplash.com/photo-1464349608316-290128714043?auto=format&fit=crop&w=1200&h=1200&q=80`, { responseType: 'arraybuffer' });
+      console.warn("Primary engine traffic delay, pulling fallback birthday scene.");
+      // High quality fallback birthday scene (Cake with candles) instead of balloons or landscapes
+      const fallbackResponse = await axios.get(`https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?auto=format&fit=crop&w=1200&h=1200&q=80`, { responseType: 'arraybuffer' });
       imageBuffer = Buffer.from(fallbackResponse.data);
     }
 
-    // STEP C: Push the custom generated birthday image directly to Supabase storage
+    // STEP C: Push the greeting card image directly into your Supabase storage
     const fileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${fileName}`;
 
