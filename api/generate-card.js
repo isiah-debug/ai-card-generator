@@ -1,5 +1,4 @@
 import { GoogleGenAI } from '@google/genai';
-import axios from 'axios';
 
 // Initialize Google Gen AI
 const ai = new GoogleGenAI({ apiKey: "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q" });
@@ -9,17 +8,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Read input parameters dynamically from the request body
-  const user_prompt = req.body.user_prompt || "A young boy smiling surrounded by family blowing out candles on a giant birthday cake";
+  // Safely grab user parameters from your ReqBin workspace payload
+  const user_prompt = req.body.user_prompt || "A young boy blowing out candles on a birthday cake";
   const style_tone = req.body.style_tone || "Anime Art";
   const sender_name = req.body.sender_name || "Mom and Dad";
 
-  const SUPABASE_URL = "https://pwaziqkamplowuywamik.supabase.co"; 
-  const SUPABASE_ANON_KEY = "sb_publishable_5AXCyf6PWiAeahNJXSEz7Q_pA78tHqm";
-
   try {
-    // STEP A: Request structured greeting card JSON fields from Gemini
-    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown formatting, code blocks, or backticks.`;
+    // STEP A: Request structured greeting card content fields from Gemini
+    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any gaming terms, markdown codeblocks, or backticks.`;
     
     let cardTextDetails;
     try {
@@ -41,40 +37,14 @@ export default async function handler(req, res) {
       };
     }
 
-    // STEP B: Generate unique, prompt-matched artwork using Pollinations AI
-    let imageBuffer;
-    const uniqueSeed = Math.floor(Math.random() * 1000000);
+    // STEP B: Generate a completely unique, prompt-matched live AI rendering link
+    const uniqueSeed = Math.floor(Math.random() * 9999999);
+    const artworkPrompt = `vibrant birthday greeting card design, ${user_prompt}, ${style_tone} style, festive atmosphere, detailed digital art canvas`;
     
-    // Build an explicit illustration prompt matching your greeting criteria
-    const artworkPrompt = `vibrant birthday greeting card illustration, ${user_prompt}, ${style_tone} style, festive atmosphere, highly detailed digital art`;
-    
-    // The seed query parameter forces the generator to ignore old browser caches
-    const dynamicGeneratorUrl = `https://image.pollinations.ai/p/${encodeURIComponent(artworkPrompt)}?width=1000&height=1000&seed=${uniqueSeed}&nologo=true`;
+    // We pass the dynamic text prompt and seed directly to the public live delivery engine
+    const directLiveAiUrl = `https://image.pollinations.ai/p/${encodeURIComponent(artworkPrompt)}?width=1000&height=1000&seed=${uniqueSeed}&nologo=true`;
 
-    try {
-      const imageResponse = await axios.get(dynamicGeneratorUrl, { responseType: 'arraybuffer', timeout: 9000 });
-      imageBuffer = Buffer.from(imageResponse.data);
-    } catch (imgErr) {
-      console.warn("Generation engine delayed, substituting high-quality fallback vector art asset.");
-      const fallbackResponse = await axios.get(`https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?auto=format&fit=crop&w=1000&h=1000&q=80`, { responseType: 'arraybuffer' });
-      imageBuffer = Buffer.from(fallbackResponse.data);
-    }
-
-    // STEP C: Upload file to Supabase using a unique timestamped filename
-    const uniqueFileName = `birthday-${Date.now()}-${uniqueSeed}.png`;
-    const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${uniqueFileName}`;
-
-    await axios.post(supabaseUploadUrl, imageBuffer, {
-      headers: {
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'apikey': SUPABASE_ANON_KEY,
-        'Content-Type': 'image/png'
-      }
-    });
-
-    const permanentImageUrl = `${SUPABASE_URL}/storage/v1/object/public/card-art/${uniqueFileName}`;
-
-    // STEP D: Send response back to ReqBin
+    // STEP C: Return the clean success object back to your testing panel instantly
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
@@ -82,15 +52,11 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: permanentImageUrl
+        stored_image_url: directLiveAiUrl
       }
     });
 
   } catch (error) {
-    return res.status(500).json({ 
-      status: "error", 
-      error: error.message,
-      details: error.response?.data || "Check Supabase Storage Policies panel" 
-    });
+    return res.status(500).json({ status: "error", error: error.message });
   }
 }
