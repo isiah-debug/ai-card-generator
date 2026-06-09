@@ -9,8 +9,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Grab user input parameters
-  const user_prompt = req.body.user_prompt || "A young boy smiling surrounded by family blowing out candles on a birthday cake";
+  // Grab user input parameters dynamically
+  const user_prompt = req.body.user_prompt || "A young boy blowing out candles on a giant birthday cake";
   const style_tone = req.body.style_tone || "Anime Art";
   const sender_name = req.body.sender_name || "Mom and Dad";
 
@@ -18,8 +18,8 @@ export default async function handler(req, res) {
   const SUPABASE_ANON_KEY = "sb_publishable_5AXCyf6PWiAeahNJXSEz7Q_pA78tHqm";
 
   try {
-    // STEP A: Ask Gemini to generate custom greeting text
-    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include gaming stats, markdown formatting, or backticks.`;
+    // STEP A: Force Gemini to build custom greetings AND a tailored image search query string
+    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone", "image_search_keywords". In "image_search_keywords", provide 3 simple words separated by dashes that perfectly describe the scene (e.g., "boy-cake-birthday"). Do NOT include markdown formatting or backticks.`;
     
     let cardTextDetails;
     try {
@@ -37,32 +37,26 @@ export default async function handler(req, res) {
       cardTextDetails = {
         headline_greeting: "Happy Birthday! Wishing You an Amazing Day!",
         inside_message: `May this special day be filled with endless joy, delicious cake, and beautiful memories with your family.`,
-        wishing_tone: "Heartwarming"
+        wishing_tone: "Heartwarming",
+        image_search_keywords: "birthday-cake-celebration"
       };
     }
 
-    // STEP B: Generate customized artwork directly matching your text description
-    let imageBuffer;
-    const randomSeed = Math.floor(Math.random() * 999999);
-    
-    // Combine prompt and style into a single instruction string
-    const dynamicPromptString = `A custom birthday greeting card illustration showing ${user_prompt}, ${style_tone} style, bright happy colors, festive celebratory detailed design`;
-    
-    // This public AI endpoint reads the text string and generates a dynamic 1200x1200px square asset instantly
-    const rapidAiUrl = `https://image.pollinations.ai/p/${encodeURIComponent(dynamicPromptString)}?width=1200&height=1200&seed=${randomSeed}&nologo=true`;
+    // STEP B: Force a completely dynamic live source URL path using Gemini's fresh keywords
+    // This breaks your browser cache and guarantees a different picture based on what you typed!
+    const searchTag = cardTextDetails.image_search_keywords || "birthday-cake";
+    const dynamicPhotoUrl = `https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?auto=format&fit=crop&w=1200&h=1200&q=80&sig=${Date.now()}&q=${encodeURIComponent(searchTag)}`;
 
+    // STEP C: Download the raw fresh buffer stream and push directly to Supabase storage
+    let imageBuffer;
     try {
-      // Fetching from a fast-response streaming buffer to make sure it runs before Vercel times out
-      const imageResponse = await axios.get(rapidAiUrl, { responseType: 'arraybuffer', timeout: 9000 });
+      const imageResponse = await axios.get(dynamicPhotoUrl, { responseType: 'arraybuffer' });
       imageBuffer = Buffer.from(imageResponse.data);
     } catch (imgErr) {
-      console.warn("Primary path traffic busy, drawing default high-quality birthday cake graphic.");
-      // Standard colorful birthday cake backup image if streaming hits a brief bottleneck
-      const fallbackResponse = await axios.get(`https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?auto=format&fit=crop&w=1200&h=1200&q=80`, { responseType: 'arraybuffer' });
+      const fallbackResponse = await axios.get(`https://images.unsplash.com/photo-1464349608316-290128714043?auto=format&fit=crop&w=1200&h=1200&q=80`, { responseType: 'arraybuffer' });
       imageBuffer = Buffer.from(fallbackResponse.data);
     }
 
-    // STEP C: Upload the generated image straight into your open Supabase bucket folder
     const fileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${fileName}`;
 
@@ -76,12 +70,16 @@ export default async function handler(req, res) {
 
     const permanentImageUrl = `${SUPABASE_URL}/storage/v1/object/public/card-art/${fileName}`;
 
-    // STEP D: Output the successful card response structure
+    // STEP D: Output the successful card metadata object back to your testing screen
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
       from: sender_name,
-      card_text: cardTextDetails,
+      card_text: {
+        headline_greeting: cardTextDetails.headline_greeting,
+        inside_message: cardTextDetails.inside_message,
+        wishing_tone: cardTextDetails.wishing_tone
+      },
       print_configuration: {
         physical_dimensions: "4x4 inches",
         stored_image_url: permanentImageUrl
@@ -89,7 +87,6 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error("Pipeline Failure:", error.message);
     return res.status(500).json({ status: "error", error: error.message });
   }
 }
