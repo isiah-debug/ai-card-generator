@@ -9,8 +9,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Get parameters or apply festive fallback values
-  const user_prompt = req.body.user_prompt || "A young boy smiling surrounded by family blowing out candles on a giant birthday cake";
+  // Grab user input parameters
+  const user_prompt = req.body.user_prompt || "A young boy smiling surrounded by family blowing out candles on a birthday cake";
   const style_tone = req.body.style_tone || "Anime Art";
   const sender_name = req.body.sender_name || "Mom and Dad";
 
@@ -18,8 +18,8 @@ export default async function handler(req, res) {
   const SUPABASE_ANON_KEY = "sb_publishable_5AXCyf6PWiAeahNJXSEz7Q_pA78tHqm";
 
   try {
-    // STEP A: Ask Gemini to generate heartwarming birthday card text
-    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include gaming terminology, attack stats, markdown formatting, or backticks.`;
+    // STEP A: Ask Gemini to generate custom greeting text
+    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include gaming stats, markdown formatting, or backticks.`;
     
     let cardTextDetails;
     try {
@@ -41,22 +41,28 @@ export default async function handler(req, res) {
       };
     }
 
-    // STEP B: Pull a beautiful high-quality Birthday Cake scene directly 
+    // STEP B: Generate customized artwork directly matching your text description
     let imageBuffer;
+    const randomSeed = Math.floor(Math.random() * 999999);
     
-    // Direct, guaranteed high-quality vector illustration of a birthday cake with candles 
-    const stableArtUrl = `https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?auto=format&fit=crop&w=1200&h=1200&q=80`;
+    // Combine prompt and style into a single instruction string
+    const dynamicPromptString = `A custom birthday greeting card illustration showing ${user_prompt}, ${style_tone} style, bright happy colors, festive celebratory detailed design`;
+    
+    // This public AI endpoint reads the text string and generates a dynamic 1200x1200px square asset instantly
+    const rapidAiUrl = `https://image.pollinations.ai/p/${encodeURIComponent(dynamicPromptString)}?width=1200&height=1200&seed=${randomSeed}&nologo=true`;
 
     try {
-      const imageResponse = await axios.get(stableArtUrl, { responseType: 'arraybuffer', timeout: 10000 });
+      // Fetching from a fast-response streaming buffer to make sure it runs before Vercel times out
+      const imageResponse = await axios.get(rapidAiUrl, { responseType: 'arraybuffer', timeout: 9000 });
       imageBuffer = Buffer.from(imageResponse.data);
     } catch (imgErr) {
-      // Emergency secondary high-quality colorful cake illustration
-      const fallbackResponse = await axios.get(`https://images.unsplash.com/photo-1464349608316-290128714043?auto=format&fit=crop&w=1200&h=1200&q=80`, { responseType: 'arraybuffer' });
+      console.warn("Primary path traffic busy, drawing default high-quality birthday cake graphic.");
+      // Standard colorful birthday cake backup image if streaming hits a brief bottleneck
+      const fallbackResponse = await axios.get(`https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?auto=format&fit=crop&w=1200&h=1200&q=80`, { responseType: 'arraybuffer' });
       imageBuffer = Buffer.from(fallbackResponse.data);
     }
 
-    // STEP C: Push the greeting card image directly into your Supabase storage
+    // STEP C: Upload the generated image straight into your open Supabase bucket folder
     const fileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${fileName}`;
 
@@ -70,7 +76,7 @@ export default async function handler(req, res) {
 
     const permanentImageUrl = `${SUPABASE_URL}/storage/v1/object/public/card-art/${fileName}`;
 
-    // STEP D: Output the unified, complete success package
+    // STEP D: Output the successful card response structure
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
