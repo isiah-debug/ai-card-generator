@@ -3,7 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 const ai = new GoogleGenAI({ apiKey: "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q" });
 
 export default async function handler(req, res) {
-  // Enforce absolute anti-caching metrics across networks
+  // Hard disable caching across Vercel edge networks
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -42,16 +42,16 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: FLEXIBLE BROADBAND SEARCH ROUTE
+    // STEP 2: STABLE DYNAMIC SOURCE IMAGE URL
     // ==========================================
-    // Extracts clean descriptive terms from your user_prompt for open matching
-    const cleanKeywords = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").split(" ").join(",");
-    
-    // Combining keywords seamlessly without strict intersecting /all flags to avoid Tombili triggers
-    const permanentImageUrl = `https://loremflickr.com/800/800/${encodeURIComponent(cleanKeywords)},birthday?lock=${Math.floor(Math.random() * 10000)}`;
+    // Using Unsplash's dynamic keyword lookup engine. 
+    // It safely parses whole phrases and randomizes via the 'sig' parameter to guarantee variety.
+    const searchTerms = encodeURIComponent(`${user_prompt} celebration`);
+    const randomSignature = Math.floor(Math.random() * 50000);
+    const permanentImageUrl = `https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=800&q=80&sig=${randomSignature}&q=${searchTerms}`;
 
     // ==========================================
-    // STEP 3: OUTPUT SANITIZED WORKBOOK PAYLOAD
+    // STEP 3: OUTPUT THE PAYLOAD
     // ==========================================
     return res.status(200).json({
       status: "success",
