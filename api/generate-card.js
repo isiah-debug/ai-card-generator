@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import axios from 'axios';
 
-// Initializing the Google Gen AI SDK
+// Initialize the Google Gen AI client with your API key
 const ai = new GoogleGenAI({ apiKey: "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q" });
 
 export default async function handler(req, res) {
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
   try {
     // ==========================================
-    // STEP 1: GENERATE CUSTOM TEXT LAYOUT (AI TEXT)
+    // STEP 1: GENERATE CUSTOM CARD TEXT (GEMINI)
     // ==========================================
     const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown codeblocks or backticks.`;
     
@@ -43,35 +43,27 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // STEP 2: GENERATE REAL IMAGE WITH IMAGEN
+    // STEP 2: GENERATE NEW IMAGE WITH AI (IMAGEN)
     // ==========================================
-    let imageBuffer;
-    try {
-      const finalVisualPrompt = `A festive birthday card graphic showing: ${user_prompt}. Artistic style: ${style_tone}. High resolution vector illustration.`;
-      
-      // Using the correct Imagen model designation via generateImages
-      const imageResponse = await ai.models.generateImages({
-        model: 'imagen-3.0-generate-002', 
-        prompt: finalVisualPrompt,
-        config: {
-          numberOfImages: 1,
-          outputMimeType: 'image/png',
-          aspectRatio: '1:1',
-        },
-      });
+    const finalVisualPrompt = `A stunning, high-quality festive birthday card background showing: ${user_prompt}. Digital art style: ${style_tone}. Colorful, celebration theme, professional illustration.`;
+    
+    // Correct SDK call structure for Imagen 3 image generation
+    const imageResponse = await ai.models.generateImages({
+      model: 'imagen-3.0-generate-002',
+      prompt: finalVisualPrompt,
+      config: {
+        numberOfImages: 1,
+        outputMimeType: 'image/png',
+        aspectRatio: '1:1',
+      },
+    });
 
-      // Extract the base64 image data directly from the proper SDK response structure
-      const base64Data = imageResponse.generatedImages[0].image.imageBytes;
-      imageBuffer = Buffer.from(base64Data, 'base64');
-    } catch (imageGenError) {
-      // Corrected fallback logic: statically generates a solid 2x2 colored placeholder image via buffer
-      // This completely avoids hitting external domains or throwing "Invalid URL" errors if generation fails
-      const fallbackHex = "89504e470d0a1a0a0000000d49484452000000020000000208020000000d0d15e50000000c49444154789c6360dc60000002040001272f22ac0000000049454e44ae426082";
-      imageBuffer = Buffer.from(fallbackHex, 'hex');
-    }
+    // Extract the base64 string from the correct response structure and turn it into a binary buffer
+    const base64ImageBytes = imageResponse.generatedImages[0].image.imageBytes;
+    const imageBuffer = Buffer.from(base64ImageBytes, 'base64');
 
     // ==========================================
-    // STEP 3: UPLOAD THE GENERATED BUFFER TO SUPABASE
+    // STEP 3: UPLOAD GEN-AI IMAGE TO SUPABASE
     // ==========================================
     const uniqueFileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${uniqueFileName}`;
@@ -84,11 +76,11 @@ export default async function handler(req, res) {
       }
     });
 
-    // Construct the direct public URL path
+    // Construct the live public URL path pointing directly to your new AI asset
     const permanentImageUrl = `${SUPABASE_URL}/storage/v1/object/public/card-art/${uniqueFileName}`;
 
     // ==========================================
-    // STEP 4: RETURN THE RESPONSE
+    // STEP 4: RETURN RESPONSIBLE SUCCESS OBJECT
     // ==========================================
     return res.status(200).json({
       status: "success",
