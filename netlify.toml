@@ -1,0 +1,7 @@
+[functions]
+  directory = "api"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/*"
+  status = 200
