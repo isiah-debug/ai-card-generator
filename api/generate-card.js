@@ -1,21 +1,35 @@
 import { GoogleGenAI } from '@google/genai';
 import axios from 'axios';
 
+// Initialize the Google Gen AI SDK
 const ai = new GoogleGenAI({ apiKey: "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q" });
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+export async function handler(event, context) {
+  // Only allow POST requests
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      body: JSON.stringify({ error: 'Method not allowed' }),
+    };
   }
 
-  const user_prompt = req.body.user_prompt || "A little kid blowing out birthday candles";
-  const style_tone = req.body.style_tone || "Cute Pixar Cartoon Style";
-  const sender_name = req.body.sender_name || "Uncle Jimmy";
+  // Safely parse body variables sent from your ReqBin panel
+  let body = {};
+  try {
+    body = JSON.parse(event.body || '{}');
+  } catch (e) {
+    body = {};
+  }
+
+  const user_prompt = body.user_prompt || "A little kid blowing out birthday candles";
+  const style_tone = body.style_tone || "Cute Pixar Cartoon Style";
+  const sender_name = body.sender_name || "Uncle Jimmy";
 
   const SUPABASE_URL = "https://pwaziqkamplowuywamik.supabase.co"; 
   const SUPABASE_ANON_KEY = "sb_publishable_5AXCyf6PWiAeahNJXSEz7Q_pA78tHqm";
 
   try {
+    // STEP A: Ask Gemini to generate heartwarming birthday card text
     const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown codeblocks or backticks.`;
     
     let cardTextDetails;
@@ -38,6 +52,7 @@ export default async function handler(req, res) {
       };
     }
 
+    // STEP B: Fetch a vibrant, guaranteed Birthday Cake photo instantly
     let imageBuffer;
     const guaranteedCakeUrl = `https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?auto=format&fit=crop&w=1200&h=1200&q=80`;
 
@@ -49,6 +64,7 @@ export default async function handler(req, res) {
       imageBuffer = Buffer.from(fallbackResponse.data);
     }
 
+    // STEP C: Push the image straight to your Supabase Storage bucket with a unique filename
     const uniqueFileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${uniqueFileName}`;
 
@@ -62,18 +78,27 @@ export default async function handler(req, res) {
 
     const permanentImageUrl = `${SUPABASE_URL}/storage/v1/object/public/card-art/${uniqueFileName}`;
 
-    return res.status(200).json({
-      status: "success",
-      card_type: "Custom Birthday Greeting Card",
-      from: sender_name,
-      card_text: cardTextDetails,
-      print_configuration: {
-        physical_dimensions: "4x4 inches",
-        stored_image_url: permanentImageUrl
-      }
-    });
+    // STEP D: Output successful Netlify standard response package
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: "success",
+        card_type: "Custom Birthday Greeting Card",
+        from: sender_name,
+        card_text: cardTextDetails,
+        print_configuration: {
+          physical_dimensions: "4x4 inches",
+          stored_image_url: permanentImageUrl
+        }
+      })
+    };
 
   } catch (error) {
-    return res.status(500).json({ status: "error", error: error.message });
+    return {
+      statusCode: 500,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "error", error: error.message })
+    };
   }
 }
