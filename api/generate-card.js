@@ -41,23 +41,22 @@ export default async function handler(req, res) {
       };
     }
 
-    // STEP B: Fetch a vibrant, unique celebratory image asset instantly
+    // STEP B: Fetch a vibrant, guaranteed Birthday Cake photo instantly
     let imageBuffer;
     
-    // Using Picsum's specific dynamic holiday/party theme asset stream ID (Bypasses Pollinations completely)
-    const randomSeed = Math.floor(Math.random() * 50) + 1;
-    const stableArtUrl = `https://picsum.photos/id/1053/1200/1200`; // Vivid celebration stream bokeh lighting canvas
+    // This is a direct link to a beautiful birthday cake graphic asset (Bypasses all flaky AI image servers)
+    const guaranteedCakeUrl = `https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?auto=format&fit=crop&w=1200&h=1200&q=80`;
 
     try {
-      const imageResponse = await axios.get(stableArtUrl, { responseType: 'arraybuffer' });
+      const imageResponse = await axios.get(guaranteedCakeUrl, { responseType: 'arraybuffer' });
       imageBuffer = Buffer.from(imageResponse.data);
     } catch (imgErr) {
-      // Direct backup high-res birthday cake photography asset
-      const fallbackResponse = await axios.get(`https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?auto=format&fit=crop&w=1200&h=1200&q=80`, { responseType: 'arraybuffer' });
+      // Direct emergency backup birthday cake photo
+      const fallbackResponse = await axios.get(`https://images.unsplash.com/photo-1464349608316-290128714043?auto=format&fit=crop&w=1200&h=1200&q=80`, { responseType: 'arraybuffer' });
       imageBuffer = Buffer.from(fallbackResponse.data);
     }
 
-    // STEP C: Push the brand new image layout straight to your Supabase Storage bucket
+    // STEP C: Push the image straight to your Supabase Storage bucket with a unique filename
     const uniqueFileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${uniqueFileName}`;
 
