@@ -1,7 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import axios from 'axios';
 
-// Initialize the Google Gen AI SDK
 const ai = new GoogleGenAI({ apiKey: "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q" });
 
 export default async function handler(req, res) {
@@ -9,7 +8,6 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Extract body variables safely from your ReqBin panel
   const user_prompt = req.body.user_prompt || "A little kid blowing out birthday candles";
   const style_tone = req.body.style_tone || "Cute Pixar Cartoon Style";
   const sender_name = req.body.sender_name || "Uncle Jimmy";
@@ -18,8 +16,7 @@ export default async function handler(req, res) {
   const SUPABASE_ANON_KEY = "sb_publishable_5AXCyf6PWiAeahNJXSEz7Q_pA78tHqm";
 
   try {
-    // STEP A: Ask Gemini to generate heartwarming birthday card text
-    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any gaming terms, markdown codeblocks, or backticks.`;
+    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown codeblocks or backticks.`;
     
     let cardTextDetails;
     try {
@@ -41,7 +38,6 @@ export default async function handler(req, res) {
       };
     }
 
-    // STEP B: Fetch a vibrant, guaranteed Birthday Cake photo instantly
     let imageBuffer;
     const guaranteedCakeUrl = `https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?auto=format&fit=crop&w=1200&h=1200&q=80`;
 
@@ -49,12 +45,10 @@ export default async function handler(req, res) {
       const imageResponse = await axios.get(guaranteedCakeUrl, { responseType: 'arraybuffer' });
       imageBuffer = Buffer.from(imageResponse.data);
     } catch (imgErr) {
-      // Direct backup celebration balloons asset (No more red shirt man!)
-      const fallbackResponse = await axios.get(`https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=1200&h=1200&q=80`, { responseType: 'arraybuffer' });
+      const fallbackResponse = await axios.get('[https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=1200&h=1200&q=80](https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=1200&h=1200&q=80)', { responseType: 'arraybuffer' });
       imageBuffer = Buffer.from(fallbackResponse.data);
     }
 
-    // STEP C: Push the image straight to your Supabase Storage bucket with a unique filename
     const uniqueFileName = `birthday-card-${Date.now()}.png`;
     const supabaseUploadUrl = `${SUPABASE_URL}/storage/v1/object/card-art/${uniqueFileName}`;
 
@@ -68,7 +62,6 @@ export default async function handler(req, res) {
 
     const permanentImageUrl = `${SUPABASE_URL}/storage/v1/object/public/card-art/${uniqueFileName}`;
 
-    // STEP D: Output the successful card data object back to your testing screen
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
