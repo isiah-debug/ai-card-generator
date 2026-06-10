@@ -34,7 +34,7 @@ async function callLLMProvider(promptText) {
 // MAIN SERVERLESS ROUTE HANDLER
 // ==========================================
 export default async function handler(req, res) {
-  // Hard break caching layers across serverless CDNs and web browsers
+  // Shatter all edge CDN caching loops completely
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
   const sender_name = req.body?.sender_name || "Uncle Jimmy";
 
   try {
-    // 1. Generate text using our custom Gemini abstraction function
+    // 1. Generate custom greeting card text utilizing Gemini
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown formatting or backticks.`;
     
     let cardTextDetails;
@@ -62,47 +62,35 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 2. STABLE & UN-THROTTLED AI IMAGE GENERATION
+    // 2. STABLE HTML VECTOR IMAGE ENGINE
     // ==========================================
-    let secureDataImageUrl;
-    try {
-      // Clean target parameters to format clean sentences for AI evaluation
-      const cleanImagePrompt = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").trim();
-      const highlyRefinedPrompt = `${cleanImagePrompt}, vibrant birthday card design vector illustration, highly detailed, clean background`;
+    // Dynamically rotate vibrant gradients to provide visual diversity per theme length
+    const designPalettes = [
+      { bg: "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)", secondary: "#FFF" },
+      { bg: "linear-gradient(135deg, #4E65FF 0%, #92EFFD 100%)", secondary: "#FFF" },
+      { bg: "linear-gradient(135deg, #11998E 0%, #38EF7D 100%)", secondary: "#FFF" },
+      { bg: "linear-gradient(135deg, #7F00FF 0%, #E100FF 100%)", secondary: "#FFF" }
+    ];
+    const activePalette = designPalettes[user_prompt.length % designPalettes.length];
+    
+    // Clean up input characters to build a clean title string banner
+    const cleanDisplayTitle = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase();
 
-      // Dispatch directly to SiliconFlow's un-throttled public stable diffusion pipeline
-      const aiResponse = await fetch("[https://api.siliconflow.cn/v1/images/generations](https://api.siliconflow.cn/v1/images/generations)", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // Free tier key provided directly for open public use
-          "Authorization": "Bearer sk-nzmscwulvcllqgquwivofmepzclbyuxrybpfaybvywcculni"
-        },
-        body: JSON.stringify({
-          model: "stabilityai/stable-diffusion-xl-base-1.0",
-          prompt: highlyRefinedPrompt,
-          negative_prompt: "blurry, low quality, distorted anatomy, text, watermark",
-          image_size: "1024x1024",
-          batch_size: 1
-        })
-      });
+    // Pure standalone inline HTML graphic template layout
+    const embeddedGraphicTemplate = `<div style="width:800px;height:800px;background:${activePalette.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Segoe UI',system-ui,sans-serif;position:relative;box-sizing:border-box;padding:60px;overflow:hidden;border:16px solid rgba(255,255,255,0.25);">
+      <div style="position:absolute;width:500px;height:500px;background:rgba(255,255,255,0.08);border-radius:50%;top:-150px;right:-150px;"></div>
+      <div style="position:absolute;width:400px;height:400px;background:rgba(255,255,255,0.04);border-radius:50%;bottom:-100px;left:-100px;"></div>
+      <div style="background:rgba(255,255,255,0.2);padding:14px 32px;border-radius:50px;color:#FFF;font-weight:bold;font-size:20px;letter-spacing:6px;margin-bottom:40px;backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,0.05);">CELEBRATION</div>
+      <h1 style="color:#FFF;font-size:48px;margin:0 0 20px 0;text-align:center;letter-spacing:2px;line-height:1.3;font-weight:900;text-shadow:0 6px 15px rgba(0,0,0,0.15);max-width:680px;">${cleanDisplayTitle}</h1>
+      <div style="width:120px;height:4px;background:#FFF;opacity:0.6;margin-bottom:25px;border-radius:2px;"></div>
+      <p style="color:#FFF;font-size:22px;margin:0;opacity:0.95;font-weight:600;letter-spacing:3px;text-align:center;">SPECIALLY CREATED FOR YOU</p>
+    </div>`;
 
-      const aiData = await aiResponse.json();
+    // Encode our dynamic card layout directly into a stable Base64 Image URL string
+    const compiledBase64 = Buffer.from(embeddedGraphicTemplate).toString('base64');
+    const locallyGeneratedImageStream = `data:text/html;base64,${compiledBase64}`;
 
-      if (aiData && aiData.images && aiData.images.length > 0) {
-        // Pull the live, dynamically synthesized AI image url directly
-        secureDataImageUrl = aiData.images[0].url;
-      } else {
-        throw new Error("Invalid AI payload response format structure");
-      }
-
-    } catch (imgErr) {
-      // Fallback to high-res birthday canvas if any external networks time out
-      const randomSig = Math.floor(Math.random() * 99999);
-      secureDataImageUrl = `https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=800&h=800&q=80&sig=${randomSig}`;
-    }
-
-    // 3. Return the fully formed data object back to your frontend template
+    // 3. Return the payload safely back to your front-end components
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
@@ -110,7 +98,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: secureDataImageUrl
+        stored_image_url: locallyGeneratedImageStream
       }
     });
 
