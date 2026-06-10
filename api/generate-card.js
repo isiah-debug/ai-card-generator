@@ -79,12 +79,11 @@ export default async function handler(req, res) {
       .replace(/"/g, "&quot;")
       .toUpperCase();
 
-    // Breaking up the namespace string prevents automatic markdown linking bugs
-    const xmlUrlPart1 = "http://www.";
-    const xmlUrlPart2 = "w3.org/2000/svg";
-    const cleanNamespace = xmlUrlPart1 + xmlUrlPart2;
+    // Split both namespaces to completely isolate them from AI auto-linking tools
+    const svgNamespace = "http://" + "www.w3.org/2000/svg";
+    const htmlNamespace = "http://" + "www.w3.org/1999/xhtml";
 
-    const cleanSvgDocument = `<svg xmlns="${cleanNamespace}" viewBox="0 0 800 800" width="100%" height="100%">
+    const cleanSvgDocument = `<svg xmlns="${svgNamespace}" viewBox="0 0 800 800" width="100%" height="100%">
       <defs>
         <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="${chosenTheme.start}" />
@@ -104,9 +103,9 @@ export default async function handler(req, res) {
       </g>
       
       <foreignObject x="60" y="280" width="680" height="320">
-        <div xmlns="[http://www.w3.org/1999/xhtml](http://www.w3.org/1999/xhtml)" style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: system-ui, -apple-system, sans-serif; text-align: center; box-sizing: border-box;">
+        <div xmlns="${htmlNamespace}" style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: system-ui, -apple-system, sans-serif; text-align: center; box-sizing: border-box;">
           
-          <h1 style="color: #ffffff; font-size: 38px; font-weight: 900; margin: 0 0 20px 0; padding: 0; line-height: 1.3; letter-spacing: 1px; text-shadow: 0 4px 12px rgba(0,0,0,0.15); max-width: 100%;">
+          <h1 style="color: #ffffff; font-size: 36px; font-weight: 900; margin: 0 0 20px 0; padding: 0; line-height: 1.4; letter-spacing: 1px; text-shadow: 0 4px 12px rgba(0,0,0,0.15); max-width: 100%;">
             ${sanitizedTitle}
           </h1>
           
@@ -120,7 +119,7 @@ export default async function handler(req, res) {
       </foreignObject>
     </svg>`.trim();
 
-    // Encode the perfectly organized SVG document to base64
+    // Encode the sanitized SVG string blueprint into a valid base64 stream
     const base64Content = Buffer.from(cleanSvgDocument).toString('base64');
     const secureDynamicVectorStream = `data:image/svg+xml;base64,${base64Content}`;
 
