@@ -1,5 +1,5 @@
 // =========================================================================
-// 1. CONFIGURATION & BODY PARSING
+// 1. CONFIGURATION & PARSING
 // =========================================================================
 const SILICON_FLOW_KEY = process.env.SILICON_FLOW_KEY;
 
@@ -16,7 +16,7 @@ function getRequestBody(req) {
 // =========================================================================
 async function callLLMProvider(promptText) {
   if (!SILICON_FLOW_KEY || !SILICON_FLOW_KEY.startsWith("sk-")) {
-    throw new Error("Missing or invalid SILICON_FLOW_KEY configuration format.");
+    throw new Error("Missing or invalid SILICON_FLOW_KEY configuration.");
   }
 
   const response = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
@@ -52,12 +52,10 @@ async function callLLMProvider(promptText) {
 // =========================================================================
 async function generatePrimaryAIImage(promptText, uniqueSeed) {
   if (!SILICON_FLOW_KEY || !SILICON_FLOW_KEY.startsWith("sk-")) {
-    throw new Error("Invalid API key layout configuration.");
+    throw new Error("Invalid API key configuration layout.");
   }
 
-  const siliconFlowImageUrl = String.fromCharCode(104,116,116,115,58,47,47,97,112,105,46,115,105,108,105,99,111,110,102,108,111,119,46,99,110,47,118,49,47,105,109,97,103,101,115,47,103,101,110,101,114,97,116,105,111,110,115);
-  
-  const response = await fetch(siliconFlowImageUrl, {
+  const response = await fetch("[https://api.siliconflow.cn/v1/images/generations](https://api.siliconflow.cn/v1/images/generations)", {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -65,48 +63,52 @@ async function generatePrimaryAIImage(promptText, uniqueSeed) {
     },
     body: JSON.stringify({
       model: "stabilityai/stable-diffusion-xl",
-      prompt: `${promptText}, vibrant colors, clean digital illustration, masterpiece landscape art presentation background, 8k resolution`,
-      negative_prompt: "ugly, blurry, low quality, text, words, logos, watermark, signatures, letters, frame, border",
+      prompt: `${promptText.trim()}, vibrant colors, clean digital illustration, gaming presentation wallpaper backdrop, masterpiece art background, no text`,
+      negative_prompt: "ugly, blurry, low quality, text, words, logos, watermark, signatures, letters, frame, border, interface, UI",
       image_size: "1024x1024",
-      batch_size: 1,
-      seed: uniqueSeed, 
-      num_inference_steps: 20,
-      guidance_scale: 7.5
+      seed: uniqueSeed,
+      num_inference_steps: 20
     })
   });
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Primary engine busy: ${errText}`);
+    throw new Error(`Primary image generation error: ${errText}`);
   }
 
   const data = await response.json();
-  const asset = data.images[0];
+  if (!data.images || data.images.length === 0) {
+    throw new Error("Empty image payload from cluster.");
+  }
   
+  const asset = data.images[0];
   if (typeof asset === 'string') {
     return asset.startsWith('http') ? asset : `data:image/png;base64,${asset}`;
   }
   
   const imgUrl = asset.url || asset.b64_json;
-  return (imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:')) ? `data:image/png;base64,${imgUrl}` : imgUrl;
+  if (imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:')) {
+    return `data:image/png;base64,${imgUrl}`;
+  }
+  return imgUrl;
 }
 
 // =========================================================================
 // 4. BACKUP AI IMAGE ENGINE (POLLINATIONS FLUX SYSTEM)
 // =========================================================================
 async function generateBackupAIImage(promptText, uniqueSeed) {
-  const enhancedAIPrompt = encodeURIComponent(`${promptText}, game poster background concept, stylized creative digital art, no text`);
+  const enhancedAIPrompt = encodeURIComponent(`${promptText}, stylized fantasy vector backdrop illustration, no text`);
   const remoteUrl = `https://image.pollinations.ai/p/${enhancedAIPrompt}?width=800&height=800&model=flux&seed=${uniqueSeed}&nologo=true`;
   
   try {
     const imgResponse = await fetch(remoteUrl);
-    if (!imgResponse.ok) throw new Error("Fallback upstream error");
+    if (!imgResponse.ok) throw new Error("Fallback upstream node down");
     
     const arrayBuffer = await imgResponse.arrayBuffer();
     return `data:image/jpeg;base64,${Buffer.from(arrayBuffer).toString('base64')}`;
   } catch (err) {
-    // Beautiful block-patterned backup background if everything breaks
-    return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MDAiIGhlaWdodD0iODAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWEyNDIxIi8+PGcgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Utb3BhY2l0eT0iMC4wNSIgc3Ryb2tlLXdpZHRoPSIyIj48cGF0aCBkPSJNMCA4MGg4MDBNMCAxNjBoODAwTTAgMjQwaDgwME0wIDMyMGg4MDBNMCA0MDBoODAwTTAgNDgwaDgwME0wIDU2MGg4MDBNMCA2NDBoODAwTTAgNzIwaDgwME04MCB2ODAwTTE2MCB2ODAwTTI0MCB2ODAwTTMyMCB2ODAwTTQwMCB2ODAwTTQ4MCB2ODAwTTU2MCB2ODAwTTY0MCB2ODAwTTcyMCB2ODAwIi8+PC9nPjwvc3ZnPg==";
+    // Clean geometrical fallback background string if absolute failure occurs
+    return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MDAiIGhlaWdodD0iODAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWEyNDIxIi8+PC9zdmc+";
   }
 }
 
@@ -132,10 +134,10 @@ export default async function handler(req, res) {
   const sender_name = body.sender_name || "Sarah";
 
   try {
-    // A. Generate Wording Blueprint
+    // A. Generate Custom AI Wording Content
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". 
     Return a clean, raw JSON object ONLY with these exact keys: 
-    "headline_greeting": "A short, exciting punchy greeting (e.g., 'Level Up!', 'Block-Tastic Day!', or 'Epic Spawn!')", 
+    "headline_greeting": "A short, exciting punchy greeting matching the theme context.", 
     "inside_message": "A creative, warm 1-2 sentence birthday message customized perfectly to the theme.", 
     "wishing_tone": "Joyful".
     Do NOT include markdown formatting wrappers.`;
@@ -144,9 +146,9 @@ export default async function handler(req, res) {
     try {
       cardTextDetails = await callLLMProvider(systemPrompt);
     } catch (err) {
-      // Dynamic fallback custom-tailored to handle Minecraft natively
-      const themeLower = user_prompt.toLowerCase();
-      if (themeLower.includes("mine") || themeLower.includes("block") || themeLower.includes("craft")) {
+      // Intent mapping check for custom fallbacks
+      const lower = user_prompt.toLowerCase();
+      if (lower.includes("mine") || lower.includes("block") || lower.includes("craft")) {
         cardTextDetails = {
           headline_greeting: "BLOCK-TASTIC DAY!",
           inside_message: `Wishing you an awesome adventure on your birthday! May your day be filled with rare discoveries, grand creations, and endless exploration across your world!`,
@@ -163,7 +165,7 @@ export default async function handler(req, res) {
 
     const uniqueSeed = Math.floor(Math.random() * 9999999);
 
-    // B. AI Image Engine Pipeline
+    // B. AI-Powered Image Generation Pipeline
     let verifiedImageSource;
     try {
       verifiedImageSource = await generatePrimaryAIImage(user_prompt, uniqueSeed);
@@ -171,7 +173,7 @@ export default async function handler(req, res) {
       verifiedImageSource = await generateBackupAIImage(user_prompt, uniqueSeed);
     }
 
-    // C. Clean XML/SVG Assembly
+    // C. Clean XML Safety Map Sanitize
     const sanitizeForXML = (str) => {
       return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
     };
@@ -179,12 +181,10 @@ export default async function handler(req, res) {
     const sanitizedHeadline = sanitizeForXML(cardTextDetails.headline_greeting).toUpperCase();
     const sanitizedBodyMessage = sanitizeForXML(cardTextDetails.inside_message);
     const sanitizedSender = sanitizeForXML(sender_name);
-    const sanitizedImageUrl = sanitizeForXML(verifiedImageSource);
+    const sanitizedImageUrl = sanitizedImageUrl = verifiedImageSource; // Pass string smoothly
 
-    const svgURI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,50,48,48,48,47,115,118,103);
-    const xhtmlURI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,49,57,57,57,47,120,104,116,109,108);
-
-    const hybridSvgDocument = `<svg xmlns="${svgURI}" viewBox="0 0 800 800" width="100%" height="100%">
+    // D. Assemble Structured SVG Blueprint - FIXED ABSOLUTE NAMESPACES
+    const hybridSvgDocument = `<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" viewBox="0 0 800 800" width="100%" height="100%">
       <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
       
       <rect width="800" height="800" fill="#0b0f19" fill-opacity="0.55" />
@@ -196,7 +196,7 @@ export default async function handler(req, res) {
       </g>
       
       <foreignObject x="80" y="170" width="640" height="440">
-        <div xmlns="${xhtmlURI}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 10px;">
+        <div xmlns="[http://www.w3.org/1999/xhtml](http://www.w3.org/1999/xhtml)" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 10px;">
           <div style="background-color: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.2); padding: 40px 30px; border-radius: 20px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.6); text-align: center;">
             <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 28px; font-weight: 900; margin: 0 0 18px 0; line-height: 1.3; letter-spacing: 0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.7); word-wrap: break-word;">${sanitizedHeadline}</h1>
             <div style="width: 50px; height: 3px; background-color: rgba(255, 255, 255, 0.35); margin: 0 auto 20px auto; border-radius: 2px;"></div>
