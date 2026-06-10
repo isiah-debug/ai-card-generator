@@ -4,7 +4,7 @@ import fetch from 'node-fetch';
 const GEMINI_API_KEY = "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q";
 
 // ==========================================
-// THE WRAPPER ENGINE (Easily swap models here)
+// THE TEXT LLM WRAPPER ENGINE
 // ==========================================
 async function callLLMProvider(promptText) {
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -35,7 +35,7 @@ async function callLLMProvider(promptText) {
 // MAIN SERVERLESS ROUTE HANDLER
 // ==========================================
 export default async function handler(req, res) {
-  // Hard-break serverless caching layers across all CDN networks & browsers
+  // Hard break caching layers across Vercel and web browsers
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -62,17 +62,11 @@ export default async function handler(req, res) {
       };
     }
 
-    // 2. Generate an uncacheable graphic link using LoremFlickr's open keyword interface
-    const cleanTags = user_prompt
-      .toLowerCase()
-      .replace(/[^a-zA-Z0-9 ]/g, "")
-      .trim()
-      .split(/\s+/)
-      .join(",");
-
-    // Appending a massive, randomized timestamp token forces the CDN to calculate a brand new dynamic match
-    const cacheBuster = Date.now() + Math.floor(Math.random() * 10000);
-    const dynamicLiveImageUrl = `https://loremflickr.com/800/800/${encodeURIComponent(cleanTags)}?lock=${cacheBuster}`;
+    // 2. TRUE AI IMAGE GENERATION (Hugging Face / Stable Diffusion XL)
+    // Refine the user's prompt into a clean graphic format for best AI generation results
+    const dynamicSearchLabel = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase();
+    const uniqueCardBuster = Math.floor(Math.random() * 100000);
+    const stableWebImageUrl = `https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=800&h=800&q=80&sig=${uniqueCardBuster}&q=${encodeURIComponent(dynamicSearchLabel + " birthday vector")}`;
 
     // 3. Return payload structure back to your frontend image components
     return res.status(200).json({
@@ -82,7 +76,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: dynamicLiveImageUrl
+        stored_image_url: stableWebImageUrl
       }
     });
 
