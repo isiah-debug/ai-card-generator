@@ -2,6 +2,8 @@ import fetch from 'node-fetch';
 
 // CONFIGURATION VARIABLES
 const GEMINI_API_KEY = "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q";
+// Your private authenticated SiliconFlow API key to bypass rate limits
+const SILICON_FLOW_KEY = "sk-aqnelyloqupavmquzwptcigvzzurzmqodkdrrcrfgjxlmybq";
 
 // ==========================================
 // THE TEXT LLM WRAPPER ENGINE
@@ -34,7 +36,7 @@ async function callLLMProvider(promptText) {
 // MAIN SERVERLESS ROUTE HANDLER
 // ==========================================
 export default async function handler(req, res) {
-  // Hard break all aggressive CDN edge caching layers
+  // Hard break all aggressive CDN edge caching layers across Vercel
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -47,7 +49,7 @@ export default async function handler(req, res) {
   const sender_name = req.body?.sender_name || "Uncle Jimmy";
 
   try {
-    // 1. Generate text copy using our Gemini function wrapper
+    // 1. Generate text data parameters utilizing Gemini
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown formatting or backticks.`;
     
     let cardTextDetails;
@@ -62,21 +64,20 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 2. HIGH-SPEED STABLE AI IMAGE PIPELINE
+    // 2. PRIVATELY AUTHENTICATED AI IMAGE PIPELINE
     // ==========================================
     let secureImageUrl;
     try {
-      // Clean up text characters to form a pristine prompt engineering string
+      // Clean up special characters to structure a pristine prompt
       const cleanPromptInput = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").trim();
       const advancedArtPrompt = `${cleanPromptInput}, vibrant birthday card design vector illustration, highly detailed digital art, crisp clean focus, beautiful lighting`;
 
-      // Request a real machine learning graphic directly via SiliconFlow's developer network
+      // Request a real machine learning graphic using your private key allocation
       const aiResponse = await fetch("[https://api.siliconflow.cn/v1/images/generations](https://api.siliconflow.cn/v1/images/generations)", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // Free tier developer token provided directly for public app building use
-          "Authorization": "Bearer sk-nzmscwulvcllqgquwivofmepzclbyuxrybpfaybvywcculni"
+          "Authorization": `Bearer ${SILICON_FLOW_KEY}`
         },
         body: JSON.stringify({
           model: "stabilityai/stable-diffusion-xl-base-1.0",
@@ -90,14 +91,14 @@ export default async function handler(req, res) {
       const aiData = await aiResponse.json();
 
       if (aiData && aiData.images && aiData.images.length > 0) {
-        // Successfully captured the live AI-generated artwork URL asset string!
+        // Successfully captured your private AI-generated artwork URL asset!
         secureImageUrl = aiData.images[0].url;
       } else {
         throw new Error("Invalid AI image object structure back from API provider");
       }
 
     } catch (imgErr) {
-      // Emergency dynamic fallback canvas if external networks time out
+      // Emergency dynamic fallback canvas if your account run out of credits/tokens
       const randomSig = Math.floor(Math.random() * 9999);
       secureImageUrl = `https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=800&h=800&q=80&sig=${randomSig}`;
     }
@@ -110,7 +111,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: secureImageUrl // Pulls the rich, uniquely generated AI scene image!
+        stored_image_url: secureImageUrl
       }
     });
 
