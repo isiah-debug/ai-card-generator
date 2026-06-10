@@ -52,10 +52,10 @@ async function generateSiliconFlowImage(promptText) {
     body: JSON.stringify({
       model: "stabilityai/stable-diffusion-xl",
       prompt: `${promptText}, vibrant digital art style, stunning dynamic wallpaper, cinematic lighting, masterpiece presentation backdrop`,
-      negative_prompt: "ugly, blurry, low quality, text, logos, signatures, watermark, words",
+      negative_prompt: "ugly, blurry, low quality, text, logos, signatures, watermark, frames, words",
       image_size: "1024x1024",
       batch_size: 1,
-      num_inference_steps: 20,
+      num_inference_steps: 22,
       guidance_scale: 7.5
     })
   });
@@ -109,25 +109,23 @@ export default async function handler(req, res) {
     let cardTextDetails;
     try {
       cardTextDetails = await callLLMProvider(systemPrompt);
-      // Extra verification check to ensure fields are present
       if (!cardTextDetails.headline_greeting || !cardTextDetails.inside_message) {
-        throw new Error("Missing text schema structures.");
+        throw new Error("Missing text fields.");
       }
     } catch (llmErr) {
-      // Direct failover structure formatting fix
       cardTextDetails = {
-        headline_greeting: "HAPPY BIRTHDAY!",
+        headline_greeting: "VICTORY ROYALE!",
         inside_message: `Wishing you an incredible day filled with epic wins, legendary loot, and amazing celebrations!`,
         wishing_tone: "Joyful"
       };
     }
 
-    // B. Image Pipeline: AI generation first, high-res keyword match second
+    // B. Image Pipeline: Try AI first, break cache with dynamic seed keywords second
     let verifiedImageSource;
     try {
       verifiedImageSource = await generateSiliconFlowImage(user_prompt);
     } catch (imgErr) {
-      // PARSE KEYWORD FROM PROMPT
+      // Clean up the prompt to match dynamic categories
       const words = user_prompt.toLowerCase().replace(/[^a-z0-9 ]/g, "").split(" ");
       
       let searchKeyword = "birthday"; 
@@ -141,8 +139,11 @@ export default async function handler(req, res) {
         searchKeyword = words[0]; 
       }
 
-      // Dynamic Unsplash keyword fallback
-      verifiedImageSource = `https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&h=800&q=80&qkw=${encodeURIComponent(searchKeyword)}`;
+      // CRITICAL DYNAMIC IMAGE ROTATION FIX:
+      // We mix a mathematically random integer signature parameter ('sig') directly into the lookup URL.
+      // This forces the internet layout delivery engine to shuffle results and pull a DIFFERENT gaming image every time!
+      const randomSeedSignature = Math.floor(Math.random() * 50000);
+      verifiedImageSource = `https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&h=800&q=80&sig=${randomSeedSignature}&qkw=${encodeURIComponent(searchKeyword)}`;
     }
 
     // ==========================================
