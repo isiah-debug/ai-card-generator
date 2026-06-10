@@ -18,20 +18,6 @@ function getRequestBody(req) {
   return req.body;
 }
 
-// Helper function to safely convert any external URL image into a secure Base64 Data URI
-async function convertUrlToBase64(url) {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const arrayBuffer = await res.arrayBuffer();
-    const contentType = res.headers.get('content-type') || 'image/png';
-    const base64String = Buffer.from(arrayBuffer).toString('base64');
-    return `data:${contentType};base64,${base64String}`;
-  } catch (e) {
-    return null;
-  }
-}
-
 // =========================================================================
 // 2. SILICONFLOW TEXT ENGINE (NEX-N2-PRO)
 // =========================================================================
@@ -88,7 +74,7 @@ async function generatePrimaryAIImage(promptText, uniqueSeed) {
       negative_prompt: "ugly, blurry, low quality, text, words, logos, watermark, signatures, letters, frame, border, interface, UI",
       image_size: "1024x1024",
       seed: uniqueSeed,
-      num_inference_steps: 20
+      num_inference_steps: 15
     })
   });
 
@@ -104,30 +90,11 @@ async function generatePrimaryAIImage(promptText, uniqueSeed) {
   
   const asset = data.images[0];
   let imgUrl = typeof asset === 'string' ? asset : (asset.url || asset.b64_json);
-
-  if (imgUrl.startsWith('http')) {
-    const base64Data = await convertUrlToBase64(imgUrl);
-    if (base64Data) return base64Data;
-  }
   
-  if (imgUrl && !imgUrl.startsWith('data:')) {
+  if (imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:')) {
     return `data:image/png;base64,${imgUrl}`;
   }
   return imgUrl;
-}
-
-// =========================================================================
-// 4. BACKUP AI IMAGE ENGINE (POLLINATIONS FLUX SYSTEM)
-// =========================================================================
-async function generateBackupAIImage(promptText, uniqueSeed) {
-  const enhancedAIPrompt = encodeURIComponent(`${promptText}, stylized fantasy vector backdrop illustration, no text`);
-  const remoteUrl = `${BACKUP_BASE_URL}${enhancedAIPrompt}?width=800&height=800&model=flux&seed=${uniqueSeed}&nologo=true`;
-  
-  const base64Data = await convertUrlToBase64(remoteUrl);
-  if (base64Data) return base64Data;
-
-  // Fallback structural layout if both networks throw exceptions
-  return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="%23111827"/><path d="M0 500 L200 350 L450 600 L650 400 L800 550 L800 800 L0 800 Z" fill="%231f2937" opacity="0.5"/><path d="M0 600 L300 450 L550 700 L800 520 L800 800 L0 800 Z" fill="%23374151" opacity="0.3"/></svg>`;
 }
 
 // =========================================================================
@@ -182,12 +149,14 @@ export default async function handler(req, res) {
 
     const uniqueSeed = Math.floor(Math.random() * 9999999);
 
-    // B. AI-Powered Image Generation Pipeline
+    // B. AI-Powered Image Generation (Fast Fetch Only)
     let verifiedImageSource;
     try {
       verifiedImageSource = await generatePrimaryAIImage(user_prompt, uniqueSeed);
     } catch (primaryErr) {
-      verifiedImageSource = await generateBackupAIImage(user_prompt, uniqueSeed);
+      // Direct, fast path to CDN fallback to protect the execution stack window
+      const enhancedAIPrompt = encodeURIComponent(`${user_prompt}, stylized fantasy vector backdrop illustration, no text`);
+      verifiedImageSource = `${BACKUP_BASE_URL}${enhancedAIPrompt}?width=800&height=800&model=flux&seed=${uniqueSeed}&nologo=true`;
     }
 
     // C. Clean XML Safety Map Sanitize
@@ -228,9 +197,6 @@ export default async function handler(req, res) {
       <text x="400" y="700" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="18" fill="#ffffff" letter-spacing="3" opacity="0.75">SPECIALLY CREATED FOR YOU</text>
     </svg>`.trim();
 
-    const base64Content = Buffer.from(hybridSvgDocument).toString('base64');
-    const finalStoredImageUrl = `data:image/svg+xml;base64,${base64Content}`;
-
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
@@ -238,7 +204,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: finalStoredImageUrl
+        stored_image_url: hybridSvgDocument // Returning the raw SVG string allows the client to mount it directly without canvas rendering timeouts
       }
     });
 
