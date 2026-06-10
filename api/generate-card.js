@@ -107,7 +107,7 @@ async function generateBackupAIImage(promptText, uniqueSeed) {
     const arrayBuffer = await imgResponse.arrayBuffer();
     return `data:image/jpeg;base64,${Buffer.from(arrayBuffer).toString('base64')}`;
   } catch (err) {
-    // Clean geometrical fallback background string if absolute failure occurs
+    // Geometrical block fallback background string if absolute API failure occurs
     return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MDAiIGhlaWdodD0iODAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWEyNDIxIi8+PC9zdmc+";
   }
 }
@@ -146,7 +146,7 @@ export default async function handler(req, res) {
     try {
       cardTextDetails = await callLLMProvider(systemPrompt);
     } catch (err) {
-      // Intent mapping check for custom fallbacks
+      // Intent mapping check for custom fallback blocks
       const lower = user_prompt.toLowerCase();
       if (lower.includes("mine") || lower.includes("block") || lower.includes("craft")) {
         cardTextDetails = {
@@ -183,7 +183,7 @@ export default async function handler(req, res) {
     const sanitizedSender = sanitizeForXML(sender_name);
     const sanitizedImageUrl = sanitizeForXML(verifiedImageSource);
 
-    // D. Assemble Structured SVG Blueprint - FIXED ABSOLUTE NAMESPACES
+    // D. Assemble Structured SVG Blueprint - CLEAN INTEGRATED NAMESPACES
     const hybridSvgDocument = `<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" viewBox="0 0 800 800" width="100%" height="100%">
       <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
       
