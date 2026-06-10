@@ -95,10 +95,10 @@ export default async function handler(req, res) {
   }
 
   const user_prompt = req.body?.user_prompt || "birthday cake";
-  const sender_name = req.body?.sender_name || "Uncle Jimmy";
+  const sender_name = req.body?.sender_name || "Chris";
 
   try {
-    // A. Ask Nex to create themed textual messaging layouts
+    // A. Format custom greeting text
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". 
     Return a clean, raw JSON object ONLY with these exact keys: 
     "headline_greeting": "A short, exciting punchy greeting (e.g., 'Level Up!' or 'Victory Royale!')", 
@@ -109,7 +109,12 @@ export default async function handler(req, res) {
     let cardTextDetails;
     try {
       cardTextDetails = await callLLMProvider(systemPrompt);
+      // Extra verification check to ensure fields are present
+      if (!cardTextDetails.headline_greeting || !cardTextDetails.inside_message) {
+        throw new Error("Missing text schema structures.");
+      }
     } catch (llmErr) {
+      // Direct failover structure formatting fix
       cardTextDetails = {
         headline_greeting: "HAPPY BIRTHDAY!",
         inside_message: `Wishing you an incredible day filled with epic wins, legendary loot, and amazing celebrations!`,
@@ -117,31 +122,31 @@ export default async function handler(req, res) {
       };
     }
 
-    // B. Image Pipeline: Try AI Generation first, fall back to high-res keyword repository matching second
+    // B. Image Pipeline: AI generation first, high-res keyword match second
     let verifiedImageSource;
     try {
       verifiedImageSource = await generateSiliconFlowImage(user_prompt);
     } catch (imgErr) {
-      // SMART FALLBACK: Clean up the user prompt to find a great search keyword (e.g., "fortnite", "gaming", "neon")
+      // PARSE KEYWORD FROM PROMPT
       const words = user_prompt.toLowerCase().replace(/[^a-z0-9 ]/g, "").split(" ");
       
-      let searchKeyword = "birthday"; // Default fallback category
-      if (words.includes("fortnite") || words.includes("gaming") || words.includes("gamer")) {
+      let searchKeyword = "birthday"; 
+      if (words.includes("fortnite") || words.includes("gaming") || words.includes("gamer") || words.includes("dance")) {
         searchKeyword = "gaming";
-      } else if (words.includes("cake") || words.includes("cupcake")) {
+      } else if (words.includes("cake") || words.includes("cupcake") || words.includes("balloons")) {
         searchKeyword = "cake";
       } else if (words.includes("neon") || words.includes("cyberpunk")) {
         searchKeyword = "neon";
       } else if (words.length > 0 && words[0].length > 2) {
-        searchKeyword = words[0]; // Use their first descriptive word
+        searchKeyword = words[0]; 
       }
 
-      // Dynamic Unsplash target parameters that match the card width perfectly
+      // Dynamic Unsplash keyword fallback
       verifiedImageSource = `https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&h=800&q=80&qkw=${encodeURIComponent(searchKeyword)}`;
     }
 
     // ==========================================
-    // 3. COMPILE ARTWORK INLINE OVERLAY (SVG)
+    // 3. COMPILE OVERLAY ASYNC GRAPHIC (SVG)
     // ==========================================
     const sanitizeForXML = (str) => {
       return (str || "")
