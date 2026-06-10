@@ -17,7 +17,7 @@ const sanitizeForXML = (str) => {
 };
 
 // =========================================================================
-// 2. HIGH-PERFORMANCE LOCAL DESIGN ENGINES
+// 2. LOSSLESS BASE64 LOCAL ART ENGINES
 // =========================================================================
 function generateLocalCardText(user_prompt) {
   const lower = (user_prompt || "").toLowerCase();
@@ -36,23 +36,26 @@ function generateLocalCardText(user_prompt) {
     };
   }
 
-  // Beautiful universal default if no specific keyword matches
   return {
     headline_greeting: "HAPPY BIRTHDAY!",
     inside_message: "May this brand new year bring endless joy, spectacular achievements, and unforgettable memories. Keep leveling up!"
   };
 }
 
-function generateLocalVectorBackground(user_prompt) {
+// Generates a fully compiled base64 string layout to prevent browser parsing errors
+function generateBase64VectorBackground(user_prompt) {
   const lower = (user_prompt || "").toLowerCase();
-  
-  // Crimson to Violet-Blue Gaming Gradient
+  let rawSvg = "";
+
   if (lower.includes("mine") || lower.includes("block") || lower.includes("craft") || lower.includes("skyblock") || lower.includes("royale") || lower.includes("game")) {
-    return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23ff007f"/><stop offset="50%" stop-color="%237928ca"/><stop offset="100%" stop-color="%2300dfd8"/></linearGradient></defs><rect width="800" height="800" fill="url(%23bg)"/><g stroke="rgba(255,255,255,0.15)" stroke-width="2"><line x1="0" y1="400" x2="800" y2="400"/><line x1="400" y1="0" x2="400" y2="800"/><circle cx="400" cy="400" r="200" fill="none"/><circle cx="400" cy="400" r="300" fill="none"/><polygon points="400,150 450,350 650,400 450,450 400,650 350,450 150,400 350,350" fill="rgba(255,255,255,0.1)"/></g></svg>`;
+    // Cyberpunk Synthwave Mesh
+    rawSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ff007f"/><stop offset="50%" stop-color="#7928ca"/><stop offset="100%" stop-color="#00dfd8"/></linearGradient></defs><rect width="800" height="800" fill="url(#bg)"/><g stroke="rgba(255,255,255,0.15)" stroke-width="2"><line x1="0" y1="400" x2="800" y2="400"/><line x1="400" y1="0" x2="400" y2="800"/><circle cx="400" cy="400" r="200" fill="none"/><circle cx="400" cy="400" r="300" fill="none"/><polygon points="400,150 450,350 650,400 450,450 400,650 350,450 150,400 350,350" fill="rgba(255,255,255,0.1)"/></g></svg>`;
+  } else {
+    // Corporate Midnight Luxury Mesh
+    rawSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1e3c72"/><stop offset="100%" stop-color="#2a5298"/></linearGradient></defs><rect width="800" height="800" fill="url(#bg)"/><g stroke="rgba(255,255,255,0.08)" stroke-width="1"><circle cx="800" cy="0" r="400" fill="none"/><circle cx="0" cy="800" r="400" fill="none"/><circle cx="400" cy="400" r="150" fill="none"/></g></svg>`;
   }
-  
-  // Premium Gold / Midnight Celebration Gradient
-  return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%231e3c72"/><stop offset="100%" stop-color="%232a5298"/></linearGradient></defs><rect width="800" height="800" fill="url(%23bg)"/><g stroke="rgba(255,255,255,0.08)" stroke-width="1"><circle cx="800" cy="0" r="400" fill="none"/><circle cx="0" cy="800" r="400" fill="none"/><circle cx="400" cy="400" r="150" fill="none"/></g></svg>`;
+
+  return `data:image/svg+xml;base64,${Buffer.from(rawSvg.trim()).toString('base64')}`;
 }
 
 // =========================================================================
@@ -77,17 +80,15 @@ export default async function handler(req, res) {
   const sender_name = body.sender_name || "Sarah";
 
   try {
-    // 1. Fast Local Resolution Engine Execution
     const cardTextDetails = generateLocalCardText(user_prompt);
-    const finalInlineImageSource = generateLocalVectorBackground(user_prompt);
+    const finalInlineImageSource = generateBase64VectorBackground(user_prompt);
 
-    // 2. XML Isolation Processing 
     const sanitizedHeadline = sanitizeForXML(cardTextDetails.headline_greeting).toUpperCase();
     const sanitizedBodyMessage = sanitizeForXML(cardTextDetails.inside_message);
     const sanitizedSender = sanitizeForXML(sender_name);
     const sanitizedImageUrl = sanitizeForXML(finalInlineImageSource);
 
-    // 3. Assemble Clean SVG Blueprint Document
+    // Completely clean master layout mapping
     const hybridSvgDocument = `<svg xmlns="${SVG_XMLNS_URI}" viewBox="0 0 800 800" width="100%" height="100%">
       <rect width="800" height="800" fill="#151c2c" />
       <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
@@ -115,7 +116,6 @@ export default async function handler(req, res) {
       <text x="400" y="700" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="18" fill="#ffffff" letter-spacing="3" opacity="0.75">SPECIALLY CREATED FOR YOU</text>
     </svg>`.trim();
 
-    // 4. Wrap Output to Base64 String 
     const base64Content = Buffer.from(hybridSvgDocument).toString('base64');
     const finalStoredImageUrl = `data:image/svg+xml;base64,${base64Content}`;
 
