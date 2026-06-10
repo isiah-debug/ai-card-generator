@@ -49,8 +49,8 @@ async function generatePrimaryAIImage(promptText, uniqueSeed) {
     throw new Error("Missing SILICON_FLOW_KEY environment variable.");
   }
 
-  // Compiled via character codes to prevent auto-formatting typos
-  const siliconFlowImageUrl = String.fromCharCode(104,116,116,112,115,58,47,47,97,112,105,46,115,105,108,105,99,111,110,102,108,111,119,46,99,110,47,118,49,47,105,109,97,103,101,47,103,101,110,101,114,97,116,105,111,110,115);
+  // FIXED: Changed from /image/generations to /images/generations
+  const siliconFlowImageUrl = String.fromCharCode(104,116,116,115,58,47,47,97,112,105,46,115,105,108,105,99,111,110,102,108,111,119,46,99,110,47,118,49,47,105,109,97,103,101,115,47,103,101,110,101,114,97,116,105,111,110,115);
   
   const response = await fetch(siliconFlowImageUrl, {
     method: 'POST',
@@ -60,7 +60,7 @@ async function generatePrimaryAIImage(promptText, uniqueSeed) {
     },
     body: JSON.stringify({
       model: "stabilityai/stable-diffusion-xl",
-      prompt: `${promptText}, vibrant 3d gaming illustration, beautiful digital art masterpiece background, gaming backdrop wallpaper style`,
+      prompt: `${promptText}, vibrant 3d gaming illustration, beautiful digital art masterpiece background, gaming backdrop wallpaper style, ultra detailed`,
       negative_prompt: "ugly, blurry, low quality, text, logos, signatures, watermarks, words, letters, borders",
       image_size: "1024x1024",
       batch_size: 1,
@@ -70,31 +70,56 @@ async function generatePrimaryAIImage(promptText, uniqueSeed) {
     })
   });
 
-  if (!response.ok) throw new Error("Primary cluster node busy");
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Primary cluster node busy or invalid: ${errText}`);
+  }
 
   const data = await response.json();
   const asset = data.images[0];
-  return typeof asset === 'string' ? (asset.startsWith('http') ? asset : `data:image/png;base64,${asset}`) : (asset.url || `data:image/png;base64,${asset.b64_json}`);
+  
+  // If the API directly returns a Base64 string, format it correctly
+  if (typeof asset === 'string') {
+    return asset.startsWith('http') ? asset : `data:image/png;base64,${asset}`;
+  }
+  
+  // If it's an object, check for image url or inline fields
+  const imgUrl = asset.url || asset.b64_json;
+  if (imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:')) {
+    return `data:image/png;base64,${imgUrl}`;
+  }
+  return imgUrl;
 }
 
 // =========================================================================
-// 4. BACKUP AI IMAGE ENGINE (POLLINATIONS FLUX SYSTEM)
+// 4. BACKUP AI IMAGE ENGINE (POLLINATIONS FLUX SYSTEM WITH BASE64 INLINING)
 // =========================================================================
-function generateBackupAIImage(promptText, uniqueSeed) {
+async function generateBackupAIImage(promptText, uniqueSeed) {
   const enhancedAIPrompt = encodeURIComponent(`${promptText}, colorful 3d gaming style, beautiful background presentation canvas, no text`);
-  return `https://image.pollinations.ai/p/${enhancedAIPrompt}?width=800&height=800&model=flux&seed=${uniqueSeed}&nologo=true`;
+  const remoteUrl = `https://image.pollinations.ai/p/${enhancedAIPrompt}?width=800&height=800&model=flux&seed=${uniqueSeed}&nologo=true`;
+  
+  try {
+    // Download image data directly on the server to prevent SVG isolation errors
+    const imgResponse = await fetch(remoteUrl);
+    if (!imgResponse.ok) throw new Error("Backup image node failed");
+    
+    const arrayBuffer = await imgResponse.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    return `data:image/jpeg;base64,${buffer.toString('base64')}`;
+  } catch (err) {
+    // Fallback pixel if everything is down
+    return "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+  }
 }
 
 // =========================================================================
 // MAIN SERVERLESS ROUTE HANDLER
 // =========================================================================
 export default async function handler(req, res) {
-  // Anti-caching Headers
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
 
-  // Handle CORS Preflight Requests
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -134,7 +159,8 @@ export default async function handler(req, res) {
     try {
       verifiedImageSource = await generatePrimaryAIImage(user_prompt, uniqueSeed);
     } catch (primaryErr) {
-      verifiedImageSource = generateBackupAIImage(user_prompt, uniqueSeed);
+      // Corrected to await the base64 translation process
+      verifiedImageSource = await generateBackupAIImage(user_prompt, uniqueSeed);
     }
 
     // C. Assemble SVG Blueprint
@@ -147,7 +173,6 @@ export default async function handler(req, res) {
     const sanitizedSender = sanitizeForXML(sender_name);
     const sanitizedImageUrl = sanitizeForXML(verifiedImageSource);
 
-    // Compiled via character codes to completely protect XML validation constraints
     const svgURI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,50,48,48,48,47,115,118,103);
     const xhtmlURI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,49,57,57,57,47,120,104,116,109,108);
 
