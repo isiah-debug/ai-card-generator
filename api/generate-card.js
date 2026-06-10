@@ -71,12 +71,15 @@ async function callLLMProvider(promptText) {
 }
 
 // =========================================================================
-// 3. IMAGE GENERATION (FLUX WITH SECURE BASE64 FALLBACK HOOK)
+// 3. IMAGE GENERATION (FLUX WITH SECURE MINECRAFT LAUNCH PARAMETERS)
 // =========================================================================
 async function generatePrimaryAIImageBase64(promptText, uniqueSeed) {
   if (!SILICON_FLOW_KEY || !SILICON_FLOW_KEY.startsWith("sk-")) {
     throw new Error("Invalid key format structure configuration layout.");
   }
+
+  // Combine parameters into a structured, highly compatible prompt
+  const optimizedPrompt = `scenic minecraft lake landscape, blocky water cubes, pixel art, voxel style, blue sky, cinematic lighting, no text, masterpiece painting`;
 
   const response = await fetch(IMAGE_API_URL, {
     method: 'POST',
@@ -86,7 +89,7 @@ async function generatePrimaryAIImageBase64(promptText, uniqueSeed) {
     },
     body: JSON.stringify({
       model: "black-forest-labs/FLUX.1-schnell",
-      prompt: `${promptText.trim()}, premium artistic digital rendering design, detailed game backdrop vector card wallpaper, masterpiece layout, no text`,
+      prompt: optimizedPrompt,
       image_size: "1024x1024",
       seed: uniqueSeed,
       num_inference_steps: 4
@@ -112,11 +115,9 @@ async function generatePrimaryAIImageBase64(promptText, uniqueSeed) {
   return piece;
 }
 
-// Generates a clean, fully-compiled web-safe Base64 local vector graphic 
-// to ensure perfect client rendering when APIs fail or balances hit $0
+// Fixed Minecraft pixel-art lake fallback layout code
 function generateSafeLocalFallbackBackground() {
-  const rawVectorSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ff007f"/><stop offset="50%" stop-color="#7928ca"/><stop offset="100%" stop-color="#00dfd8"/></linearGradient></defs><rect width="800" height="800" fill="url(#bg)"/><g stroke="rgba(255,255,255,0.15)" stroke-width="2"><line x1="0" y1="400" x2="800" y2="400"/><line x1="400" y1="0" x2="400" y2="800"/><circle cx="400" cy="400" r="200" fill="none"/><circle cx="400" cy="400" r="300" fill="none"/><polygon points="400,150 450,350 650,400 450,450 400,650 350,450 150,400 350,350" fill="rgba(255,255,255,0.1)"/></g></svg>`;
-  
+  const rawVectorSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="#5cafff" /><rect x="550" y="80" width="90" height="90" fill="#fffebd" /><rect x="540" y="70" width="110" height="110" fill="#ffffd6" fill-opacity="0.3" /><g fill="#ffffff" fill-opacity="0.85"><rect x="60" y="120" width="220" height="40" /><rect x="100" y="100" width="140" height="20" /><rect x="420" y="160" width="180" height="30" /></g><g fill="#2b593f"><rect x="0" y="380" width="200" height="420" /><rect x="150" y="340" width="160" height="460" /><rect x="280" y="400" width="120" height="400" /><rect x="360" y="320" width="220" height="480" /><rect x="540" y="360" width="260" height="440" /></g><g fill="#4a852c"><rect x="0" y="460" width="800" height="340" /></g><g fill="#376620"><rect x="80" y="460" width="60" height="40" /><rect x="240" y="460" width="80" height="30" /><rect x="480" y="460" width="100" height="50" /><rect x="680" y="460" width="70" height="40" /></g><g fill="#40542a"><rect x="100" y="500" width="600" height="240" /><rect x="140" y="480" width="520" height="20" /></g><g fill="#1d61a1" fill-opacity="0.9"><rect x="120" y="510" width="560" height="210" /><rect x="150" y="490" width="500" height="20" /></g><g fill="#3782c9" fill-opacity="0.6"><rect x="180" y="530" width="80" height="20" /><rect x="440" y="520" width="120" height="20" /><rect x="260" y="600" width="140" height="30" /><rect x="480" y="640" width="90" height="20" /><rect x="160" y="660" width="110" height="25" /></g><rect width="800" height="800" fill="none" stroke="rgba(0,0,0,0.15)" stroke-width="20" /></svg>`;
   return `data:image/svg+xml;base64,${Buffer.from(rawVectorSvg.trim()).toString('base64')}`;
 }
 
@@ -154,26 +155,20 @@ export default async function handler(req, res) {
         throw new Error("Key fields parsed out empty.");
       }
     } catch (err) {
-      const lower = user_prompt.toLowerCase();
-      if (lower.includes("mine") || lower.includes("block") || lower.includes("craft")) {
-        cardTextDetails = {
-          headline_greeting: "BLOCK-TASTIC DAY!",
-          inside_message: `Wishing you an awesome adventure on your birthday! May your day be filled with rare discoveries, grand creations, and endless exploration across your world!`
-        };
-      } else {
-        cardTextDetails = {
-          headline_greeting: "VICTORY ROYALE!",
-          inside_message: `Wishing you an incredible birthday filled with epic wins, legendary loot, and non-stop celebrations!`
-        };
-      }
+      cardTextDetails = {
+        headline_greeting: "BLOCK-TASTIC DAY!",
+        inside_message: `Wishing you an awesome adventure on your birthday! May your day be filled with rare discoveries, grand creations, and endless exploration across your world!`
+      };
     }
 
-    const uniqueSeed = Math.floor(Math.random() * 888888);
+    // Generate a valid, standard integer seed safe for SiliconFlow API parsing
+    const uniqueSeed = Math.floor(Math.random() * 99999) + 1;
 
     let finalInlineImageSource;
     try {
       finalInlineImageSource = await generatePrimaryAIImageBase64(user_prompt, uniqueSeed);
     } catch (primaryErr) {
+      // Safe visual fallback layout
       finalInlineImageSource = generateSafeLocalFallbackBackground();
     }
 
