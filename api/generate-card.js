@@ -3,7 +3,6 @@
 // =========================================================================
 const SILICON_FLOW_KEY = process.env.SILICON_FLOW_KEY;
 
-// Safe URL array buffers to protect namespaces from editor formatting corruption
 const TEXT_API_URL = String.fromCharCode(104,116,116,112,115,58,47,47,97,112,105,46,115,105,108,105,99,111,110,102,108,111,119,46,99,110,47,118,49,47,99,104,97,116,47,99,111,110,112,108,101,116,105,111,110,115);
 const IMAGE_API_URL = String.fromCharCode(104,116,116,115,58,47,47,97,112,105,46,115,105,108,105,99,111,110,102,108,111,119,46,99,110,47,118,49,47,105,109,97,103,101,115,47,103,101,110,101,114,97,116,105,111,110,115);
 const BACKUP_BASE_URL = String.fromCharCode(104,116,116,115,58,47,47,105,109,97,103,101,46,112,111,108,108,105,110,97,116,105,111,110,115,46,97,105,47,112,47);
@@ -17,6 +16,20 @@ function getRequestBody(req) {
     try { return JSON.parse(req.body); } catch (e) { return {}; }
   }
   return req.body;
+}
+
+// Helper function to safely convert any external URL image into a secure Base64 Data URI
+async function convertUrlToBase64(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const arrayBuffer = await res.arrayBuffer();
+    const contentType = res.headers.get('content-type') || 'image/png';
+    const base64String = Buffer.from(arrayBuffer).toString('base64');
+    return `data:${contentType};base64,${base64String}`;
+  } catch (e) {
+    return null;
+  }
 }
 
 // =========================================================================
@@ -90,12 +103,14 @@ async function generatePrimaryAIImage(promptText, uniqueSeed) {
   }
   
   const asset = data.images[0];
-  if (typeof asset === 'string') {
-    return asset.startsWith('http') ? asset : `data:image/png;base64,${asset}`;
+  let imgUrl = typeof asset === 'string' ? asset : (asset.url || asset.b64_json);
+
+  if (imgUrl.startsWith('http')) {
+    const base64Data = await convertUrlToBase64(imgUrl);
+    if (base64Data) return base64Data;
   }
   
-  const imgUrl = asset.url || asset.b64_json;
-  if (imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:')) {
+  if (imgUrl && !imgUrl.startsWith('data:')) {
     return `data:image/png;base64,${imgUrl}`;
   }
   return imgUrl;
@@ -108,16 +123,11 @@ async function generateBackupAIImage(promptText, uniqueSeed) {
   const enhancedAIPrompt = encodeURIComponent(`${promptText}, stylized fantasy vector backdrop illustration, no text`);
   const remoteUrl = `${BACKUP_BASE_URL}${enhancedAIPrompt}?width=800&height=800&model=flux&seed=${uniqueSeed}&nologo=true`;
   
-  try {
-    const imgResponse = await fetch(remoteUrl);
-    if (!imgResponse.ok) throw new Error("Fallback upstream node down");
-    
-    const arrayBuffer = await imgResponse.arrayBuffer();
-    return `data:image/jpeg;base64,${Buffer.from(arrayBuffer).toString('base64')}`;
-  } catch (err) {
-    // Beautiful, lightweight procedural landscape backdrop if external clusters fail
-    return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="%23111827"/><path d="M0 500 L200 350 L450 600 L650 400 L800 550 L800 800 L0 800 Z" fill="%231f2937" opacity="0.5"/><path d="M0 600 L300 450 L550 700 L800 520 L800 800 L0 800 Z" fill="%23374151" opacity="0.3"/></svg>`;
-  }
+  const base64Data = await convertUrlToBase64(remoteUrl);
+  if (base64Data) return base64Data;
+
+  // Fallback structural layout if both networks throw exceptions
+  return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="%23111827"/><path d="M0 500 L200 350 L450 600 L650 400 L800 550 L800 800 L0 800 Z" fill="%231f2937" opacity="0.5"/><path d="M0 600 L300 450 L550 700 L800 520 L800 800 L0 800 Z" fill="%23374151" opacity="0.3"/></svg>`;
 }
 
 // =========================================================================
@@ -142,7 +152,7 @@ export default async function handler(req, res) {
   const sender_name = body.sender_name || "Sarah";
 
   try {
-    // A. Generate Wording Content
+    // A. Generate Custom AI Wording Content
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". 
     Return a clean, raw JSON object ONLY with these exact keys: 
     "headline_greeting": "A short, exciting punchy greeting matching the theme context.", 
@@ -190,10 +200,9 @@ export default async function handler(req, res) {
     const sanitizedSender = sanitizeForXML(sender_name);
     const sanitizedImageUrl = sanitizeForXML(verifiedImageSource);
 
-    // D. Assemble Structured SVG Blueprint - PROTECTED FROM MARKDOWN CORRUPTION
+    // D. Assemble Structured SVG Blueprint
     const hybridSvgDocument = `<svg xmlns="${SVG_XMLNS_URI}" viewBox="0 0 800 800" width="100%" height="100%">
       <rect width="800" height="800" fill="#151c2c" />
-      
       <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
       
       <rect width="800" height="800" fill="#0b0f19" fill-opacity="0.45" />
