@@ -121,7 +121,7 @@ function generateSafeLocalFallbackBackground() {
 }
 
 // =========================================================================
-// MAIN SERVERLESS ENDPOINT ROUTE
+// MAIN SERVERLESS ENDPOINT ROUTE (DIAGNOSTIC MODE)
 // =========================================================================
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -166,17 +166,19 @@ export default async function handler(req, res) {
     try {
       finalInlineImageSource = await generatePrimaryAIImageBase64(user_prompt, uniqueSeed);
     } catch (primaryErr) {
-      // DEBUG LOG: This will print the precise reason FLUX is failing right in your terminal window!
-      console.error("=== FLUX GENERATION FAILED ===");
-      console.error(primaryErr.message);
-      console.error("==============================");
-      
-      finalInlineImageSource = generateSafeLocalFallbackBackground();
+      // STOP HIDING THE ERROR: This sends the real reason straight back to ReqBin!
+      return res.status(500).json({
+        status: "error",
+        error_phase: "SiliconFlow Image Generation Pipeline",
+        message: primaryErr.message,
+        suggestion: "Check your SiliconFlow console for billing issues, model configurations, or token limits."
+      });
     }
 
+    // Forces sender name to uppercase capitals automatically
     const sanitizedHeadline = sanitizeForXML(cardTextDetails.headline_greeting).toUpperCase();
     const sanitizedBodyMessage = sanitizeForXML(cardTextDetails.inside_message);
-    const sanitizedSender = sanitizeForXML(sender_name);
+    const sanitizedSender = sanitizeForXML(sender_name).toUpperCase(); 
     const sanitizedImageUrl = sanitizeForXML(finalInlineImageSource);
 
     const hybridSvgDocument = `<svg xmlns="${SVG_XMLNS_URI}" viewBox="0 0 800 800" width="100%" height="100%">
