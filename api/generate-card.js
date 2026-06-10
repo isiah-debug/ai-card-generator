@@ -1,11 +1,10 @@
 // =========================================================================
-// 1. CONFIGURATION, PARSING & PROTECTED STRINGS (CORS SECURE)
+// 1. CONFIGURATION & COMPACT STRING MAPS
 // =========================================================================
 const SILICON_FLOW_KEY = process.env.SILICON_FLOW_KEY;
 
 const TEXT_API_URL = String.fromCharCode(104,116,116,112,115,58,47,47,97,112,105,46,115,105,108,105,99,111,110,102,108,111,119,46,99,110,47,118,49,47,99,104,97,116,47,99,111,110,112,108,101,116,105,111,110,115);
 const IMAGE_API_URL = String.fromCharCode(104,116,116,115,58,47,47,97,112,105,46,115,105,108,105,99,111,110,102,108,111,119,46,99,110,47,118,49,47,105,109,97,103,101,115,47,103,101,110,101,114,97,116,105,111,110,115);
-const BACKUP_BASE_URL = String.fromCharCode(104,116,116,112,115,58,47,47,105,109,97,103,101,46,112,111,108,108,105,110,97,116,105,111,110,115,46,97,105,47,112,47);
 
 const SVG_XMLNS_URI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,50,48,48,48,47,115,118,103);
 const XHTML_XMLNS_URI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,49,57,57,57,47,120,104,116,109,108);
@@ -18,31 +17,17 @@ function getRequestBody(req) {
   return req.body;
 }
 
-// Server helper to fetch remote image URLs and encode them into inline Base64 data arrays
-async function convertUrlToBase64Proxy(url) {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5500); // 5.5s ceiling to prevent function timeouts
-    
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    if (!res.ok) return null;
-    const arrayBuffer = await res.arrayBuffer();
-    const contentType = res.headers.get('content-type') || 'image/png';
-    const base64String = Buffer.from(arrayBuffer).toString('base64');
-    return `data:${contentType};base64,${base64String}`;
-  } catch (e) {
-    return null;
-  }
-}
+// Helper to sanitize dynamic string data for XML/SVG safety
+const sanitizeForXML = (str) => {
+  return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+};
 
 // =========================================================================
-// 2. SILICONFLOW TEXT ENGINE (NEX-N2-PRO)
+// 2. TEXT COGNITION LAYER (NEX-N2-PRO)
 // =========================================================================
 async function callLLMProvider(promptText) {
   if (!SILICON_FLOW_KEY || !SILICON_FLOW_KEY.startsWith("sk-")) {
-    throw new Error("Missing or invalid SILICON_FLOW_KEY configuration.");
+    throw new Error("Missing or invalid SILICON_FLOW_KEY credential config.");
   }
 
   const response = await fetch(TEXT_API_URL, {
@@ -61,7 +46,7 @@ async function callLLMProvider(promptText) {
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`LLM Error: ${response.status} - ${errText}`);
+    throw new Error(`LLM Response Error: ${response.status} - ${errText}`);
   }
 
   const data = await response.json();
@@ -74,11 +59,11 @@ async function callLLMProvider(promptText) {
 }
 
 // =========================================================================
-// 3. PRIMARY AI IMAGE ENGINE (SILICONFLOW SDXL)
+// 3. IMAGE GENERATION (SDXL BASE64 DIRECT HANDOFF)
 // =========================================================================
-async function generatePrimaryAIImage(promptText, uniqueSeed) {
+async function generatePrimaryAIImageBase64(promptText, uniqueSeed) {
   if (!SILICON_FLOW_KEY || !SILICON_FLOW_KEY.startsWith("sk-")) {
-    throw new Error("Invalid API key configuration layout.");
+    throw new Error("Invalid key format layout structure.");
   }
 
   const response = await fetch(IMAGE_API_URL, {
@@ -89,40 +74,35 @@ async function generatePrimaryAIImage(promptText, uniqueSeed) {
     },
     body: JSON.stringify({
       model: "stabilityai/stable-diffusion-xl",
-      prompt: `${promptText.trim()}, vibrant colors, clean digital illustration, gaming presentation wallpaper backdrop, masterpiece art background, no text`,
-      negative_prompt: "ugly, blurry, low quality, text, words, logos, watermark, signatures, letters, frame, border, interface, UI",
+      prompt: `${promptText.trim()}, premium artistic desktop graphic wallpaper backdrop, vibrant color grading, high key lighting layout, masterpiece, no text`,
+      negative_prompt: "ugly, blurry, deformed, low quality, text, words, labels, watermark, logo, interface buttons",
       image_size: "1024x1024",
       seed: uniqueSeed,
-      num_inference_steps: 14
+      num_inference_steps: 12
     })
   });
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Primary image generation error: ${errText}`);
+    throw new Error(`SDXL Engine connection error: ${errText}`);
   }
 
   const data = await response.json();
   if (!data.images || data.images.length === 0) {
-    throw new Error("Empty image payload from cluster.");
+    throw new Error("Empty image packet return array.");
   }
   
   const asset = data.images[0];
-  let imgUrl = typeof asset === 'string' ? asset : (asset.url || asset.b64_json);
+  let piece = typeof asset === 'string' ? asset : (asset.b64_json || asset.url);
   
-  if (imgUrl && imgUrl.startsWith('http')) {
-    const proxyData = await convertUrlToBase64Proxy(imgUrl);
-    if (proxyData) return proxyData;
+  if (piece && !piece.startsWith('data:') && !piece.startsWith('http')) {
+    return `data:image/png;base64,${piece}`;
   }
-
-  if (imgUrl && !imgUrl.startsWith('data:')) {
-    return `data:image/png;base64,${imgUrl}`;
-  }
-  return imgUrl;
+  return piece;
 }
 
 // =========================================================================
-// MAIN SERVERLESS ROUTE HANDLER
+// MAIN SERVERLESS ENDPOINT ROUTE
 // =========================================================================
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -143,7 +123,7 @@ export default async function handler(req, res) {
   const sender_name = body.sender_name || "Sarah";
 
   try {
-    // A. Generate Custom AI Wording Content
+    // A. Generate Card Text
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". 
     Return a clean, raw JSON object ONLY with these exact keys: 
     "headline_greeting": "A short, exciting punchy greeting matching the theme context.", 
@@ -171,36 +151,23 @@ export default async function handler(req, res) {
       }
     }
 
-    const uniqueSeed = Math.floor(Math.random() * 9999999);
+    const uniqueSeed = Math.floor(Math.random() * 888888);
 
-    // B. AI Image Generation + Automatic Server-Side Base64 Inlining
-    let verifiedImageSource = null;
+    // B. Handle Image Layer Processing
+    let finalInlineImageSource;
     try {
-      verifiedImageSource = await generatePrimaryAIImage(user_prompt, uniqueSeed);
+      finalInlineImageSource = await generatePrimaryAIImageBase64(user_prompt, uniqueSeed);
     } catch (primaryErr) {
-      const enhancedAIPrompt = encodeURIComponent(`${user_prompt}, stylized fantasy vector backdrop illustration, no text`);
-      const backupUrl = `${BACKUP_BASE_URL}${enhancedAIPrompt}?width=800&height=800&model=flux&seed=${uniqueSeed}&nologo=true`;
-      
-      // Inline the backup payload to prevent CORS blocks
-      verifiedImageSource = await convertUrlToBase64Proxy(backupUrl);
-      
-      if (!verifiedImageSource) {
-        // Ultimate code-fallback SVG structure if upstream network connections drop
-        verifiedImageSource = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="%231e293b"/><circle cx="400" cy="400" r="300" fill="%23334155" opacity="0.3"/><path d="M0 600 L200 450 L450 700 L800 500 L800 800 L0 800 Z" fill="%230f172a" opacity="0.8"/></svg>`;
-      }
+      // High-performance vector background fallback to stay safely under execution timeout limits
+      finalInlineImageSource = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%231e1b4b"/><stop offset="100%" stop-color="%230f172a"/></linearGradient></defs><rect width="800" height="800" fill="url(%23g)"/><g fill="%2338bdf8" opacity="0.08"><circle cx="200" cy="200" r="150"/><circle cx="700" cy="300" r="250"/><circle cx="400" cy="750" r="180"/></g><path d="M-100 650 L300 500 L800 700 L900 800 L-100 800 Z" fill="%23030712" opacity="0.8"/></svg>`;
     }
-
-    // C. Clean XML Safety Map Sanitize
-    const sanitizeForXML = (str) => {
-      return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
-    };
 
     const sanitizedHeadline = sanitizeForXML(cardTextDetails.headline_greeting).toUpperCase();
     const sanitizedBodyMessage = sanitizeForXML(cardTextDetails.inside_message);
     const sanitizedSender = sanitizeForXML(sender_name);
-    const sanitizedImageUrl = sanitizeForXML(verifiedImageSource);
+    const sanitizedImageUrl = sanitizeForXML(finalInlineImageSource);
 
-    // D. Assemble Structured SVG Blueprint
+    // C. Build the SVG Document Blueprint
     const hybridSvgDocument = `<svg xmlns="${SVG_XMLNS_URI}" viewBox="0 0 800 800" width="100%" height="100%">
       <rect width="800" height="800" fill="#151c2c" />
       <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
@@ -228,7 +195,7 @@ export default async function handler(req, res) {
       <text x="400" y="700" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="18" fill="#ffffff" letter-spacing="3" opacity="0.75">SPECIALLY CREATED FOR YOU</text>
     </svg>`.trim();
 
-    // Convert the entire built SVG file into a direct Base64 Data URI
+    // D. Return JSON Payload with Full Embedded SVG Output Array
     const base64Content = Buffer.from(hybridSvgDocument).toString('base64');
     const finalStoredImageUrl = `data:image/svg+xml;base64,${base64Content}`;
 
