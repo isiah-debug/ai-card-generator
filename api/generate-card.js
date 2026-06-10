@@ -4,7 +4,7 @@ import fetch from 'node-fetch';
 const SILICON_FLOW_KEY = "sk-aqnelyloqupavmquzwptcigvzzurzmqodkdrrcrfgjxlmybq";
 
 // ==========================================
-// 1. SILICONFLOW NEX-N2-PRO TEXT ENGINE
+// 1. SILICONFLOW TEXT ENGINE (NEX-N2-PRO)
 // ==========================================
 async function callLLMProvider(promptText) {
   const siliconFlowUrl = "https://api.siliconflow.cn/v1/chat/completions";
@@ -25,7 +25,7 @@ async function callLLMProvider(promptText) {
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Nex LLM Provider error: ${response.status} - ${errText}`);
+    throw new Error(`SiliconFlow LLM error: ${response.status} - ${errText}`);
   }
 
   const data = await response.json();
@@ -35,6 +35,55 @@ async function callLLMProvider(promptText) {
   if (rawText.startsWith("```")) rawText = rawText.replace(/```/g, "").trim();
   
   return JSON.parse(rawText);
+}
+
+// ==========================================
+// 2. SILICONFLOW NATIVE IMAGE ENGINE (SDXL)
+// ==========================================
+async function generateSiliconFlowImage(promptText) {
+  const siliconFlowImageUrl = "[https://api.siliconflow.cn/v1/image/generations](https://api.siliconflow.cn/v1/image/generations)";
+  
+  const response = await fetch(siliconFlowImageUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SILICON_FLOW_KEY}`
+    },
+    body: JSON.stringify({
+      model: "stabilityai/stable-diffusion-xl",
+      prompt: `${promptText}, vibrant digital art style, stunning dynamic wallpaper, cinematic lighting, masterpiece birthday presentation backdrop, details`,
+      negative_prompt: "ugly, blurry, low quality, text, logos, signatures, watermark, frames, words",
+      image_size: "1024x1024",
+      batch_size: 1,
+      num_inference_steps: 22,
+      guidance_scale: 7.5
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`SiliconFlow Image error: ${response.status} - ${errText}`);
+  }
+
+  const data = await response.json();
+  
+  // CRITICAL FIX: Extract image asset structure securely depending on how the active endpoint clusters serialize data
+  if (!data.images || data.images.length === 0) {
+    throw new Error("No image data returned from SiliconFlow cluster node.");
+  }
+
+  const imageAsset = data.images[0];
+  
+  if (typeof imageAsset === 'string') {
+    // If it's a direct string, check if it's base64 or a link
+    return imageAsset.startsWith('http') ? imageAsset : `data:image/png;base64,${imageAsset}`;
+  } else if (imageAsset.url) {
+    return imageAsset.url;
+  } else if (imageAsset.b64_json) {
+    return `data:image/png;base64,${imageAsset.b64_json}`;
+  }
+  
+  throw new Error("Unknown asset format structure from image engine.");
 }
 
 // ==========================================
@@ -53,7 +102,7 @@ export default async function handler(req, res) {
   const sender_name = req.body?.sender_name || "Uncle Jimmy";
 
   try {
-    // A. Request custom tailored copy from Nex LLM
+    // A. Ask Nex to create themed textual messaging layouts
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". 
     Return a clean, raw JSON object ONLY with these exact keys: 
     "headline_greeting": "A short, exciting punchy greeting (e.g., 'Level Up!' or 'Victory Royale!')", 
@@ -66,24 +115,23 @@ export default async function handler(req, res) {
       cardTextDetails = await callLLMProvider(systemPrompt);
     } catch (llmErr) {
       cardTextDetails = {
-        headline_greeting: "Happy Birthday!",
-        inside_message: `Wishing you an incredible day filled with epic wins and amazing surprises!`,
+        headline_greeting: "HAPPY BIRTHDAY!",
+        inside_message: `Wishing you an incredible day filled with epic wins, legendary loot, and amazing celebrations!`,
         wishing_tone: "Joyful"
       };
     }
 
-    // ==========================================
-    // 2. STABLE FLUX IMAGE GENERATION WITH ENTITIES
-    // ==========================================
-    const cleanKeywords = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").trim();
-    const descriptivePrompt = `${cleanKeywords}, high quality digital art style, vibrant gaming illustration, masterpiece background`;
-    const cleanPromptInput = encodeURIComponent(descriptivePrompt);
-    
-    // Generate a robust target image link
-    const aiSceneryUrl = `https://image.pollinations.ai/p/${cleanPromptInput}?width=800&height=800&model=flux&nologo=true&seed=${Math.floor(Math.random() * 99999)}`;
+    // B. Generate background image reliably using your native SiliconFlow token balance
+    let verifiedImageSource;
+    try {
+      verifiedImageSource = await generateSiliconFlowImage(user_prompt);
+    } catch (imgErr) {
+      // High quality, stable unthrottled alternative failover URL if generation pipeline queue hits unexpected blocks
+      verifiedImageSource = "[https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=1024&h=1024&q=80](https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=1024&h=1024&q=80)";
+    }
 
     // ==========================================
-    // 3. COMPILE TEXT WITH SVG USING RAW EMBEDDED GRAPHICS
+    // 3. COMPILE ARTWORK INLINE OVERLAY (SVG)
     // ==========================================
     const sanitizeForXML = (str) => {
       return (str || "")
@@ -97,12 +145,11 @@ export default async function handler(req, res) {
     const sanitizedHeadline = sanitizeForXML(cardTextDetails.headline_greeting).toUpperCase();
     const sanitizedBodyMessage = sanitizeForXML(cardTextDetails.inside_message);
     const sanitizedSender = sanitizeForXML(sender_name);
-    const sanitizedImageUrl = sanitizeForXML(aiSceneryUrl);
+    const sanitizedImageUrl = sanitizeForXML(verifiedImageSource);
 
     const svgURI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,50,48,48,48,47,115,118,103);
     const xhtmlURI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,49,57,57,57,47,120,104,116,109,108);
 
-    // RESTORED FIX: We structure the document as a clean standalone vector, using a background mask setup
     const hybridSvgDocument = `<svg xmlns="${svgURI}" viewBox="0 0 800 800" width="100%" height="100%">
       <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
       
@@ -118,7 +165,7 @@ export default async function handler(req, res) {
         <div xmlns="${xhtmlURI}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 10px;">
           <div style="background-color: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.25); padding: 40px 30px; border-radius: 20px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.6); text-align: center;">
             
-            <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 32px; font-weight: 900; margin: 0 0 20px 0; padding: 0; line-height: 1.3; letter-spacing: 0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.8); word-wrap: break-word;">
+            <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 30px; font-weight: 900; margin: 0 0 20px 0; padding: 0; line-height: 1.3; letter-spacing: 0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.8); word-wrap: break-word;">
               ${sanitizedHeadline}
             </h1>
             
@@ -143,8 +190,8 @@ export default async function handler(req, res) {
       </text>
     </svg>`.trim();
 
-    // Alternate structural output: We pass the raw un-encoded data string directly to bypass image tag tracking blocks
-    const finalStoredImageUrl = `data:image/svg+xml;utf8,${encodeURIComponent(hybridSvgDocument)}`;
+    const base64Content = Buffer.from(hybridSvgDocument).toString('base64');
+    const finalStoredImageUrl = `data:image/svg+xml;base64,${base64Content}`;
 
     return res.status(200).json({
       status: "success",
@@ -153,8 +200,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: finalStoredImageUrl,
-        direct_background_layer_url: aiSceneryUrl // Provided separately if your front-end layout engine needs to render it directly in an <img> tag!
+        stored_image_url: finalStoredImageUrl
       }
     });
 
