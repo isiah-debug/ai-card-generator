@@ -46,7 +46,7 @@ export default async function handler(req, res) {
   const sender_name = req.body?.sender_name || "Uncle Jimmy";
 
   try {
-    // 1. Generate text data parameters utilizing Gemini
+    // 1. Generate text details utilizing the Gemini connection wrapper
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown formatting or backticks.`;
     
     let cardTextDetails;
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 2. CRASH-PROOF NATIVE SVG GENERATION ENGINE
+    // 2. RESPONSIVE AUTO-WRAPPING SVG ENGINE
     // ==========================================
     const colorThemes = [
       { start: "#4E65FF", end: "#92EFFD" }, // Cyan/Blue Gradient
@@ -71,6 +71,7 @@ export default async function handler(req, res) {
     ];
     const chosenTheme = colorThemes[user_prompt.length % colorThemes.length];
 
+    // Clean up text characters safely for XML/HTML rendering
     const sanitizedTitle = user_prompt
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -78,7 +79,7 @@ export default async function handler(req, res) {
       .replace(/"/g, "&quot;")
       .toUpperCase();
 
-    // Splitting the xmlns parts prevents markdown processors from converting it to a link!
+    // Breaking up the namespace string prevents automatic markdown linking bugs
     const xmlUrlPart1 = "http://www.";
     const xmlUrlPart2 = "w3.org/2000/svg";
     const cleanNamespace = xmlUrlPart1 + xmlUrlPart2;
@@ -97,23 +98,29 @@ export default async function handler(req, res) {
       <circle cx="700" cy="100" r="250" fill="#ffffff" fill-opacity="0.08" />
       <circle cx="100" cy="700" r="200" fill="#ffffff" fill-opacity="0.05" />
       
-      <g transform="translate(400, 260)">
+      <g transform="translate(400, 200)">
         <rect x="-90" y="-25" width="180" height="50" rx="25" fill="#ffffff" fill-opacity="0.2" />
         <text text-anchor="middle" y="7" font-family="system-ui, -apple-system, sans-serif" font-weight="bold" font-size="18" fill="#ffffff" letter-spacing="4">CELEBRATION</text>
       </g>
       
-      <text x="400" y="420" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="32" fill="#ffffff" letter-spacing="2">
-        ${sanitizedTitle}
-      </text>
-      
-      <line x1="340" y1="470" x2="460" y2="470" stroke="#ffffff" stroke-width="4" stroke-opacity="0.6" stroke-linecap="round" />
-      
-      <text x="400" y="530" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="20" fill="#ffffff" letter-spacing="3" opacity="0.9">
-        SPECIALLY CREATED FOR YOU
-      </text>
+      <foreignObject x="60" y="280" width="680" height="320">
+        <div xmlns="[http://www.w3.org/1999/xhtml](http://www.w3.org/1999/xhtml)" style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: system-ui, -apple-system, sans-serif; text-align: center; box-sizing: border-box;">
+          
+          <h1 style="color: #ffffff; font-size: 38px; font-weight: 900; margin: 0 0 20px 0; padding: 0; line-height: 1.3; letter-spacing: 1px; text-shadow: 0 4px 12px rgba(0,0,0,0.15); max-width: 100%;">
+            ${sanitizedTitle}
+          </h1>
+          
+          <div style="width: 120px; height: 4px; background: #ffffff; opacity: 0.6; border-radius: 2px; margin-bottom: 25px;"></div>
+          
+          <p style="color: #ffffff; font-size: 20px; font-weight: 600; margin: 0; padding: 0; letter-spacing: 3px; opacity: 0.9;">
+            SPECIALLY CREATED FOR YOU
+          </p>
+          
+        </div>
+      </foreignObject>
     </svg>`.trim();
 
-    // Bundle the SVG into base64 data URI format string
+    // Encode the perfectly organized SVG document to base64
     const base64Content = Buffer.from(cleanSvgDocument).toString('base64');
     const secureDynamicVectorStream = `data:image/svg+xml;base64,${base64Content}`;
 
