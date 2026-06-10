@@ -34,7 +34,6 @@ async function callLLMProvider(promptText) {
 // MAIN SERVERLESS ROUTE HANDLER
 // ==========================================
 export default async function handler(req, res) {
-  // Prevent any edge network caching layers from serving stale data
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -64,7 +63,6 @@ export default async function handler(req, res) {
     // ==========================================
     // 2. CRASH-PROOF NATIVE SVG GENERATION ENGINE
     // ==========================================
-    // Rotate color themes based on prompt parameters to guarantee visual variation
     const colorThemes = [
       { start: "#4E65FF", end: "#92EFFD" }, // Cyan/Blue Gradient
       { start: "#FF6B6B", end: "#FF8E53" }, // Coral Orange Gradient
@@ -73,7 +71,6 @@ export default async function handler(req, res) {
     ];
     const chosenTheme = colorThemes[user_prompt.length % colorThemes.length];
 
-    // Sanitize user text inputs to conform with XML structural requirements
     const sanitizedTitle = user_prompt
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -81,8 +78,12 @@ export default async function handler(req, res) {
       .replace(/"/g, "&quot;")
       .toUpperCase();
 
-    // Plain, strictly compliant inline XML markup with clean namespace variables
-    const cleanSvgDocument = `<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" viewBox="0 0 800 800" width="100%" height="100%">
+    // Splitting the xmlns parts prevents markdown processors from converting it to a link!
+    const xmlUrlPart1 = "http://www.";
+    const xmlUrlPart2 = "w3.org/2000/svg";
+    const cleanNamespace = xmlUrlPart1 + xmlUrlPart2;
+
+    const cleanSvgDocument = `<svg xmlns="${cleanNamespace}" viewBox="0 0 800 800" width="100%" height="100%">
       <defs>
         <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="${chosenTheme.start}" />
@@ -101,7 +102,7 @@ export default async function handler(req, res) {
         <text text-anchor="middle" y="7" font-family="system-ui, -apple-system, sans-serif" font-weight="bold" font-size="18" fill="#ffffff" letter-spacing="4">CELEBRATION</text>
       </g>
       
-      <text x="400" y="420" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="36" fill="#ffffff" letter-spacing="2">
+      <text x="400" y="420" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="32" fill="#ffffff" letter-spacing="2">
         ${sanitizedTitle}
       </text>
       
@@ -112,11 +113,10 @@ export default async function handler(req, res) {
       </text>
     </svg>`.trim();
 
-    // Bundle the SVG directly into an un-throttled base64 URL wrapper data string
+    // Bundle the SVG into base64 data URI format string
     const base64Content = Buffer.from(cleanSvgDocument).toString('base64');
     const secureDynamicVectorStream = `data:image/svg+xml;base64,${base64Content}`;
 
-    // 3. Return the fully formed payload data to the client frontend
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
