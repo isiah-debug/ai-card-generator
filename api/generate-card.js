@@ -181,7 +181,7 @@ export default async function handler(req, res) {
     const sanitizedHeadline = sanitizeForXML(cardTextDetails.headline_greeting).toUpperCase();
     const sanitizedBodyMessage = sanitizeForXML(cardTextDetails.inside_message);
     const sanitizedSender = sanitizeForXML(sender_name);
-    const sanitizedImageUrl = sanitizedImageUrl = verifiedImageSource; // Pass string smoothly
+    const sanitizedImageUrl = sanitizeForXML(verifiedImageSource);
 
     // D. Assemble Structured SVG Blueprint - FIXED ABSOLUTE NAMESPACES
     const hybridSvgDocument = `<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" viewBox="0 0 800 800" width="100%" height="100%">
