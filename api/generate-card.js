@@ -3,12 +3,11 @@
 // =========================================================================
 const SILICON_FLOW_KEY = process.env.SILICON_FLOW_KEY;
 
-// Safe URL reconstruction to prevent auto-linking corruption from text editors
+// Safe URL array buffers to protect namespaces from editor formatting corruption
 const TEXT_API_URL = String.fromCharCode(104,116,116,112,115,58,47,47,97,112,105,46,115,105,108,105,99,111,110,102,108,111,119,46,99,110,47,118,49,47,99,104,97,116,47,99,111,110,112,108,101,116,105,111,110,115);
 const IMAGE_API_URL = String.fromCharCode(104,116,116,115,58,47,47,97,112,105,46,115,105,108,105,99,111,110,102,108,111,119,46,99,110,47,118,49,47,105,109,97,103,101,115,47,103,101,110,101,114,97,116,105,111,110,115);
 const BACKUP_BASE_URL = String.fromCharCode(104,116,116,115,58,47,47,105,109,97,103,101,46,112,111,108,108,105,110,97,116,105,111,110,115,46,97,105,47,112,47);
 
-// Pure, isolated URI namespace strings (No brackets, markdown, or links allowed)
 const SVG_XMLNS_URI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,50,48,48,48,47,115,118,103);
 const XHTML_XMLNS_URI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,49,57,57,57,47,120,104,116,109,108);
 
@@ -116,7 +115,8 @@ async function generateBackupAIImage(promptText, uniqueSeed) {
     const arrayBuffer = await imgResponse.arrayBuffer();
     return `data:image/jpeg;base64,${Buffer.from(arrayBuffer).toString('base64')}`;
   } catch (err) {
-    return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MDAiIGhlaWdodD0iODAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWEyNDIxIi8+PC9zdmc+";
+    // Beautiful, lightweight procedural landscape backdrop if external clusters fail
+    return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="%23111827"/><path d="M0 500 L200 350 L450 600 L650 400 L800 550 L800 800 L0 800 Z" fill="%231f2937" opacity="0.5"/><path d="M0 600 L300 450 L550 700 L800 520 L800 800 L0 800 Z" fill="%23374151" opacity="0.3"/></svg>`;
   }
 }
 
@@ -142,7 +142,7 @@ export default async function handler(req, res) {
   const sender_name = body.sender_name || "Sarah";
 
   try {
-    // A. Generate Custom AI Wording Content
+    // A. Generate Wording Content
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". 
     Return a clean, raw JSON object ONLY with these exact keys: 
     "headline_greeting": "A short, exciting punchy greeting matching the theme context.", 
@@ -192,29 +192,31 @@ export default async function handler(req, res) {
 
     // D. Assemble Structured SVG Blueprint - PROTECTED FROM MARKDOWN CORRUPTION
     const hybridSvgDocument = `<svg xmlns="${SVG_XMLNS_URI}" viewBox="0 0 800 800" width="100%" height="100%">
+      <rect width="800" height="800" fill="#151c2c" />
+      
       <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
       
-      <rect width="800" height="800" fill="#0b0f19" fill-opacity="0.55" />
-      <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="5" stroke-opacity="0.2" />
+      <rect width="800" height="800" fill="#0b0f19" fill-opacity="0.45" />
+      <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="5" stroke-opacity="0.15" />
 
       <g transform="translate(400, 110)">
-        <rect x="-90" y="-22" width="180" height="44" rx="22" fill="#ffffff" fill-opacity="0.2" />
+        <rect x="-90" y="-22" width="180" height="44" rx="22" fill="#ffffff" fill-opacity="0.15" />
         <text text-anchor="middle" y="6" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="15" fill="#ffffff" letter-spacing="4">CELEBRATION</text>
       </g>
       
       <foreignObject x="80" y="170" width="640" height="440">
         <div xmlns="${XHTML_XMLNS_URI}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 10px;">
-          <div style="background-color: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.2); padding: 40px 30px; border-radius: 20px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.6); text-align: center;">
+          <div style="background-color: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255, 255, 255, 0.15); padding: 40px 30px; border-radius: 20px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.5); text-align: center;">
             <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 28px; font-weight: 900; margin: 0 0 18px 0; line-height: 1.3; letter-spacing: 0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.7); word-wrap: break-word;">${sanitizedHeadline}</h1>
-            <div style="width: 50px; height: 3px; background-color: rgba(255, 255, 255, 0.35); margin: 0 auto 20px auto; border-radius: 2px;"></div>
+            <div style="width: 50px; height: 3px; background-color: rgba(255, 255, 255, 0.3); margin: 0 auto 20px auto; border-radius: 2px;"></div>
             <p style="color: rgba(255, 255, 255, 0.95); font-family: system-ui, -apple-system, sans-serif; font-size: 18px; font-weight: 500; line-height: 1.6; margin: 0 0 25px 0; text-shadow: 0 1px 4px rgba(0,0,0,0.4); word-wrap: break-word;">${sanitizedBodyMessage}</p>
             <p style="color: #38bdf8; font-family: system-ui, -apple-system, sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 1px; margin: 0; text-transform: uppercase;">With Love, ${sanitizedSender}</p>
           </div>
         </div>
       </foreignObject>
       
-      <line x1="330" y1="650" x2="470" y2="650" stroke="#ffffff" stroke-width="4" stroke-opacity="0.4" stroke-linecap="round" />
-      <text x="400" y="700" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="18" fill="#ffffff" letter-spacing="3" opacity="0.8">SPECIALLY CREATED FOR YOU</text>
+      <line x1="330" y1="650" x2="470" y2="650" stroke="#ffffff" stroke-width="4" stroke-opacity="0.3" stroke-linecap="round" />
+      <text x="400" y="700" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="18" fill="#ffffff" letter-spacing="3" opacity="0.75">SPECIALLY CREATED FOR YOU</text>
     </svg>`.trim();
 
     const base64Content = Buffer.from(hybridSvgDocument).toString('base64');
