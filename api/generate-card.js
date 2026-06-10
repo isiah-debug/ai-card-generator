@@ -2,7 +2,6 @@ import fetch from 'node-fetch';
 
 // CONFIGURATION VARIABLES
 const GEMINI_API_KEY = "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q";
-// Your private authenticated SiliconFlow API key to bypass rate limits
 const SILICON_FLOW_KEY = "sk-aqnelyloqupavmquzwptcigvzzurzmqodkdrrcrfgjxlmybq";
 
 // ==========================================
@@ -36,7 +35,6 @@ async function callLLMProvider(promptText) {
 // MAIN SERVERLESS ROUTE HANDLER
 // ==========================================
 export default async function handler(req, res) {
-  // Hard break all aggressive CDN edge caching layers across Vercel
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -49,7 +47,7 @@ export default async function handler(req, res) {
   const sender_name = req.body?.sender_name || "Uncle Jimmy";
 
   try {
-    // 1. Generate text data parameters utilizing Gemini
+    // 1. Generate text details utilizing the Gemini connection wrapper
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown formatting or backticks.`;
     
     let cardTextDetails;
@@ -68,11 +66,10 @@ export default async function handler(req, res) {
     // ==========================================
     let secureImageUrl;
     try {
-      // Clean up special characters to structure a pristine prompt
       const cleanPromptInput = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").trim();
-      const advancedArtPrompt = `${cleanPromptInput}, vibrant birthday card design vector illustration, highly detailed digital art, crisp clean focus, beautiful lighting`;
+      const advancedArtPrompt = `${cleanPromptInput}, vibrant colorful birthday card design, vector illustration, highly detailed digital art, crisp clean focus`;
 
-      // Request a real machine learning graphic using your private key allocation
+      // Structured OpenAI-compliant image generation fetch call
       const aiResponse = await fetch("[https://api.siliconflow.cn/v1/images/generations](https://api.siliconflow.cn/v1/images/generations)", {
         method: "POST",
         headers: {
@@ -82,28 +79,34 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           model: "stabilityai/stable-diffusion-xl-base-1.0",
           prompt: advancedArtPrompt,
-          negative_prompt: "blurry, low quality, distorted anatomy, text text watermark strings signatures bad composition",
-          image_size: "1024x1024",
-          batch_size: 1
+          image_size: "1024x1024"
         })
       });
 
       const aiData = await aiResponse.json();
 
-      if (aiData && aiData.images && aiData.images.length > 0) {
-        // Successfully captured your private AI-generated artwork URL asset!
+      // Debug mapping hook to print runtime errors inside your Vercel panel logs
+      if (!aiResponse.ok) {
+        console.error("SiliconFlow API Error Payload:", aiData);
+        throw new Error(aiData?.message || "SiliconFlow server exception");
+      }
+
+      if (aiData?.data && aiData.data.length > 0 && aiData.data[0].url) {
+        secureImageUrl = aiData.data[0].url;
+      } else if (aiData?.images && aiData.images.length > 0) {
         secureImageUrl = aiData.images[0].url;
       } else {
-        throw new Error("Invalid AI image object structure back from API provider");
+        throw new Error("Unexpected response structural layout from SiliconFlow image object tree");
       }
 
     } catch (imgErr) {
-      // Emergency dynamic fallback canvas if your account run out of credits/tokens
+      console.error("Caught Image Exception:", imgErr.message);
+      // Emergency dynamic placeholder asset backup stream
       const randomSig = Math.floor(Math.random() * 9999);
       secureImageUrl = `https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=800&h=800&q=80&sig=${randomSig}`;
     }
 
-    // 3. Deliver payload parameters safely back to your front-end components
+    // 3. Deliver payload parameters back to your front-end components
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
