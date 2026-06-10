@@ -1,17 +1,12 @@
 // =========================================================================
-// 1. CONFIGURATION (Securely read from your Vercel Environment Variables)
+// 1. CONFIGURATION & BODY PARSING
 // =========================================================================
 const SILICON_FLOW_KEY = process.env.SILICON_FLOW_KEY;
 
-// Helper to manually parse body if Vercel doesn't do it automatically
 function getRequestBody(req) {
   if (!req.body) return {};
   if (typeof req.body === 'string') {
-    try {
-      return JSON.parse(req.body);
-    } catch (e) {
-      return {};
-    }
+    try { return JSON.parse(req.body); } catch (e) { return {}; }
   }
   return req.body;
 }
@@ -20,17 +15,15 @@ function getRequestBody(req) {
 // 2. SILICONFLOW TEXT ENGINE (NEX-N2-PRO)
 // =========================================================================
 async function callLLMProvider(promptText) {
-  if (!SILICON_FLOW_KEY) {
-    throw new Error("Missing SILICON_FLOW_KEY environment variable.");
+  if (!SILICON_FLOW_KEY || !SILICON_FLOW_KEY.startsWith("sk-")) {
+    throw new Error("Missing or invalid SILICON_FLOW_KEY configuration format.");
   }
 
-  const siliconFlowUrl = "https://api.siliconflow.cn/v1/chat/completions";
-  
-  const response = await fetch(siliconFlowUrl, {
+  const response = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
     method: 'POST',
     headers: { 
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SILICON_FLOW_KEY}`
+      'Authorization': `Bearer ${SILICON_FLOW_KEY.trim()}`
     },
     body: JSON.stringify({
       model: "nex-agi/Nex-N2-Pro",
@@ -58,23 +51,22 @@ async function callLLMProvider(promptText) {
 // 3. PRIMARY AI IMAGE ENGINE (SILICONFLOW SDXL)
 // =========================================================================
 async function generatePrimaryAIImage(promptText, uniqueSeed) {
-  if (!SILICON_FLOW_KEY) {
-    throw new Error("Missing SILICON_FLOW_KEY environment variable.");
+  if (!SILICON_FLOW_KEY || !SILICON_FLOW_KEY.startsWith("sk-")) {
+    throw new Error("Invalid API key layout configuration.");
   }
 
-  // Siliconflow images endpoint compiled securely via character codes
   const siliconFlowImageUrl = String.fromCharCode(104,116,116,115,58,47,47,97,112,105,46,115,105,108,105,99,111,110,102,108,111,119,46,99,110,47,118,49,47,105,109,97,103,101,115,47,103,101,110,101,114,97,116,105,111,110,115);
   
   const response = await fetch(siliconFlowImageUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SILICON_FLOW_KEY}`
+      'Authorization': `Bearer ${SILICON_FLOW_KEY.trim()}`
     },
     body: JSON.stringify({
       model: "stabilityai/stable-diffusion-xl",
-      prompt: `${promptText}, vibrant detailed 3d illustration, masterpiece background, digital art landscape style`,
-      negative_prompt: "ugly, blurry, low quality, text, logos, signatures, watermarks, words, letters, borders, frame",
+      prompt: `${promptText}, vibrant colors, clean digital illustration, masterpiece landscape art presentation background, 8k resolution`,
+      negative_prompt: "ugly, blurry, low quality, text, words, logos, watermark, signatures, letters, frame, border",
       image_size: "1024x1024",
       batch_size: 1,
       seed: uniqueSeed, 
@@ -85,7 +77,7 @@ async function generatePrimaryAIImage(promptText, uniqueSeed) {
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Primary image engine failed: ${errText}`);
+    throw new Error(`Primary engine busy: ${errText}`);
   }
 
   const data = await response.json();
@@ -96,29 +88,25 @@ async function generatePrimaryAIImage(promptText, uniqueSeed) {
   }
   
   const imgUrl = asset.url || asset.b64_json;
-  if (imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:')) {
-    return `data:image/png;base64,${imgUrl}`;
-  }
-  return imgUrl;
+  return (imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:')) ? `data:image/png;base64,${imgUrl}` : imgUrl;
 }
 
 // =========================================================================
-// 4. BACKUP AI IMAGE ENGINE (POLLINATIONS FLUX SYSTEM WITH SERVER BASE64 TRANSLATION)
+// 4. BACKUP AI IMAGE ENGINE (POLLINATIONS FLUX SYSTEM)
 // =========================================================================
 async function generateBackupAIImage(promptText, uniqueSeed) {
-  const enhancedAIPrompt = encodeURIComponent(`${promptText}, beautiful detailed artwork, colorful, creative background, no text`);
+  const enhancedAIPrompt = encodeURIComponent(`${promptText}, game poster background concept, stylized creative digital art, no text`);
   const remoteUrl = `https://image.pollinations.ai/p/${enhancedAIPrompt}?width=800&height=800&model=flux&seed=${uniqueSeed}&nologo=true`;
   
   try {
     const imgResponse = await fetch(remoteUrl);
-    if (!imgResponse.ok) throw new Error("Pollinations fallback failed");
+    if (!imgResponse.ok) throw new Error("Fallback upstream error");
     
     const arrayBuffer = await imgResponse.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    return `data:image/jpeg;base64,${buffer.toString('base64')}`;
+    return `data:image/jpeg;base64,${Buffer.from(arrayBuffer).toString('base64')}`;
   } catch (err) {
-    // If absolutely everything breaks, return a deep space gradient instead of a blank box
-    return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MDAiIGhlaWdodD0iODAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWUxZTJkIi8+PC9zdmc+";
+    // Beautiful block-patterned backup background if everything breaks
+    return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MDAiIGhlaWdodD0iODAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWEyNDIxIi8+PGcgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Utb3BhY2l0eT0iMC4wNSIgc3Ryb2tlLXdpZHRoPSIyIj48cGF0aCBkPSJNMCA4MGg4MDBNMCAxNjBoODAwTTAgMjQwaDgwME0wIDMyMGg4MDBNMCA0MDBoODAwTTAgNDgwaDgwME0wIDU2MGg4MDBNMCA2NDBoODAwTTAgNzIwaDgwME04MCB2ODAwTTE2MCB2ODAwTTI0MCB2ODAwTTMyMCB2ODAwTTQwMCB2ODAwTTQ4MCB2ODAwTTU2MCB2ODAwTTY0MCB2ODAwTTcyMCB2ODAwIi8+PC9nPjwvc3ZnPg==";
   }
 }
 
@@ -139,16 +127,15 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Safe manual extraction of the request body parameters
   const body = getRequestBody(req);
   const user_prompt = body.user_prompt || "Minecraft skyblock island adventure";
   const sender_name = body.sender_name || "Sarah";
 
   try {
-    // A. Generate AI Birthday Text
+    // A. Generate Wording Blueprint
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". 
     Return a clean, raw JSON object ONLY with these exact keys: 
-    "headline_greeting": "A short, exciting punchy greeting tailored to the theme.", 
+    "headline_greeting": "A short, exciting punchy greeting (e.g., 'Level Up!', 'Block-Tastic Day!', or 'Epic Spawn!')", 
     "inside_message": "A creative, warm 1-2 sentence birthday message customized perfectly to the theme.", 
     "wishing_tone": "Joyful".
     Do NOT include markdown formatting wrappers.`;
@@ -157,17 +144,26 @@ export default async function handler(req, res) {
     try {
       cardTextDetails = await callLLMProvider(systemPrompt);
     } catch (err) {
-      // Dynamic local backup if the API key environment variable isn't active yet
-      cardTextDetails = {
-        headline_greeting: "BLOCK-TASTIC DAY!",
-        inside_message: `Wishing you an awesome adventure on your birthday! May your day be filled with rare discoveries, grand creations, and endless exploration across your world!`,
-        wishing_tone: "Joyful"
-      };
+      // Dynamic fallback custom-tailored to handle Minecraft natively
+      const themeLower = user_prompt.toLowerCase();
+      if (themeLower.includes("mine") || themeLower.includes("block") || themeLower.includes("craft")) {
+        cardTextDetails = {
+          headline_greeting: "BLOCK-TASTIC DAY!",
+          inside_message: `Wishing you an awesome adventure on your birthday! May your day be filled with rare discoveries, grand creations, and endless exploration across your world!`,
+          wishing_tone: "Joyful"
+        };
+      } else {
+        cardTextDetails = {
+          headline_greeting: "VICTORY ROYALE!",
+          inside_message: `Wishing you an incredible birthday filled with epic wins, legendary loot, and non-stop celebrations!`,
+          wishing_tone: "Joyful"
+        };
+      }
     }
 
     const uniqueSeed = Math.floor(Math.random() * 9999999);
 
-    // B. AI-Only Image Pipeline (FIXED: Await statements properly declared)
+    // B. AI Image Engine Pipeline
     let verifiedImageSource;
     try {
       verifiedImageSource = await generatePrimaryAIImage(user_prompt, uniqueSeed);
@@ -175,7 +171,7 @@ export default async function handler(req, res) {
       verifiedImageSource = await generateBackupAIImage(user_prompt, uniqueSeed);
     }
 
-    // C. Assemble SVG Canvas
+    // C. Clean XML/SVG Assembly
     const sanitizeForXML = (str) => {
       return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
     };
