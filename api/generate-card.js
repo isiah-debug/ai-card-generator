@@ -1,12 +1,10 @@
 // =========================================================================
-// 1. CONFIGURATION, PARSING & PROTECTED STRINGS (TYPO FIXED)
+// 1. CONFIGURATION, PARSING & PROTECTED STRINGS (CORS SECURE)
 // =========================================================================
 const SILICON_FLOW_KEY = process.env.SILICON_FLOW_KEY;
 
 const TEXT_API_URL = String.fromCharCode(104,116,116,112,115,58,47,47,97,112,105,46,115,105,108,105,99,111,110,102,108,111,119,46,99,110,47,118,49,47,99,104,97,116,47,99,111,110,112,108,101,116,105,111,110,115);
 const IMAGE_API_URL = String.fromCharCode(104,116,116,115,58,47,47,97,112,105,46,115,105,108,105,99,111,110,102,108,111,119,46,99,110,47,118,49,47,105,109,97,103,101,115,47,103,101,110,101,114,97,116,105,111,110,115);
-
-// FIXED: Added missing 112 ('p') character code back in to form a completely unbroken https:// prefix
 const BACKUP_BASE_URL = String.fromCharCode(104,116,116,112,115,58,47,47,105,109,97,103,101,46,112,111,108,108,105,110,97,116,105,111,110,115,46,97,105,47,112,47);
 
 const SVG_XMLNS_URI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,50,48,48,48,47,115,118,103);
@@ -18,6 +16,25 @@ function getRequestBody(req) {
     try { return JSON.parse(req.body); } catch (e) { return {}; }
   }
   return req.body;
+}
+
+// Server helper to fetch remote image URLs and encode them into inline Base64 data arrays
+async function convertUrlToBase64Proxy(url) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5500); // 5.5s ceiling to prevent function timeouts
+    
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    if (!res.ok) return null;
+    const arrayBuffer = await res.arrayBuffer();
+    const contentType = res.headers.get('content-type') || 'image/png';
+    const base64String = Buffer.from(arrayBuffer).toString('base64');
+    return `data:${contentType};base64,${base64String}`;
+  } catch (e) {
+    return null;
+  }
 }
 
 // =========================================================================
@@ -76,7 +93,7 @@ async function generatePrimaryAIImage(promptText, uniqueSeed) {
       negative_prompt: "ugly, blurry, low quality, text, words, logos, watermark, signatures, letters, frame, border, interface, UI",
       image_size: "1024x1024",
       seed: uniqueSeed,
-      num_inference_steps: 15
+      num_inference_steps: 14
     })
   });
 
@@ -93,7 +110,12 @@ async function generatePrimaryAIImage(promptText, uniqueSeed) {
   const asset = data.images[0];
   let imgUrl = typeof asset === 'string' ? asset : (asset.url || asset.b64_json);
   
-  if (imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:')) {
+  if (imgUrl && imgUrl.startsWith('http')) {
+    const proxyData = await convertUrlToBase64Proxy(imgUrl);
+    if (proxyData) return proxyData;
+  }
+
+  if (imgUrl && !imgUrl.startsWith('data:')) {
     return `data:image/png;base64,${imgUrl}`;
   }
   return imgUrl;
@@ -151,13 +173,21 @@ export default async function handler(req, res) {
 
     const uniqueSeed = Math.floor(Math.random() * 9999999);
 
-    // B. AI-Powered Image Generation Pipeline
-    let verifiedImageSource;
+    // B. AI Image Generation + Automatic Server-Side Base64 Inlining
+    let verifiedImageSource = null;
     try {
       verifiedImageSource = await generatePrimaryAIImage(user_prompt, uniqueSeed);
     } catch (primaryErr) {
       const enhancedAIPrompt = encodeURIComponent(`${user_prompt}, stylized fantasy vector backdrop illustration, no text`);
-      verifiedImageSource = `${BACKUP_BASE_URL}${enhancedAIPrompt}?width=800&height=800&model=flux&seed=${uniqueSeed}&nologo=true`;
+      const backupUrl = `${BACKUP_BASE_URL}${enhancedAIPrompt}?width=800&height=800&model=flux&seed=${uniqueSeed}&nologo=true`;
+      
+      // Inline the backup payload to prevent CORS blocks
+      verifiedImageSource = await convertUrlToBase64Proxy(backupUrl);
+      
+      if (!verifiedImageSource) {
+        // Ultimate code-fallback SVG structure if upstream network connections drop
+        verifiedImageSource = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="%231e293b"/><circle cx="400" cy="400" r="300" fill="%23334155" opacity="0.3"/><path d="M0 600 L200 450 L450 700 L800 500 L800 800 L0 800 Z" fill="%230f172a" opacity="0.8"/></svg>`;
+      }
     }
 
     // C. Clean XML Safety Map Sanitize
@@ -198,7 +228,7 @@ export default async function handler(req, res) {
       <text x="400" y="700" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="18" fill="#ffffff" letter-spacing="3" opacity="0.75">SPECIALLY CREATED FOR YOU</text>
     </svg>`.trim();
 
-    // Convert the compiled SVG document into a browser-safe Base64 Data URI string
+    // Convert the entire built SVG file into a direct Base64 Data URI
     const base64Content = Buffer.from(hybridSvgDocument).toString('base64');
     const finalStoredImageUrl = `data:image/svg+xml;base64,${base64Content}`;
 
