@@ -17,7 +17,6 @@ function getRequestBody(req) {
   return req.body;
 }
 
-// Helper to sanitize dynamic string data for XML/SVG safety
 const sanitizeForXML = (str) => {
   return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 };
@@ -153,13 +152,13 @@ export default async function handler(req, res) {
 
     const uniqueSeed = Math.floor(Math.random() * 888888);
 
-    // B. Handle Image Layer Processing
+    // B. Handle Image Layer Processing (Enhanced High-Visibility Vector Fallback)
     let finalInlineImageSource;
     try {
       finalInlineImageSource = await generatePrimaryAIImageBase64(user_prompt, uniqueSeed);
     } catch (primaryErr) {
-      // High-performance vector background fallback to stay safely under execution timeout limits
-      finalInlineImageSource = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%231e1b4b"/><stop offset="100%" stop-color="%230f172a"/></linearGradient></defs><rect width="800" height="800" fill="url(%23g)"/><g fill="%2338bdf8" opacity="0.08"><circle cx="200" cy="200" r="150"/><circle cx="700" cy="300" r="250"/><circle cx="400" cy="750" r="180"/></g><path d="M-100 650 L300 500 L800 700 L900 800 L-100 800 Z" fill="%23030712" opacity="0.8"/></svg>`;
+      // High-visibility abstract fallback art to ensure designs stand out beautifully
+      finalInlineImageSource = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23ff007f"/><stop offset="50%" stop-color="%237928ca"/><stop offset="100%" stop-color="%2300dfd8"/></linearGradient></defs><rect width="800" height="800" fill="url(%23bg)"/><g stroke="rgba(255,255,255,0.15)" stroke-width="2"><line x1="0" y1="400" x2="800" y2="400"/><line x1="400" y1="0" x2="400" y2="800"/><circle cx="400" cy="400" r="200" fill="none"/><circle cx="400" cy="400" r="300" fill="none"/><polygon points="400,150 450,350 650,400 450,450 400,650 350,450 150,400 350,350" fill="rgba(255,255,255,0.1)"/></g></svg>`;
     }
 
     const sanitizedHeadline = sanitizeForXML(cardTextDetails.headline_greeting).toUpperCase();
@@ -167,13 +166,13 @@ export default async function handler(req, res) {
     const sanitizedSender = sanitizeForXML(sender_name);
     const sanitizedImageUrl = sanitizeForXML(finalInlineImageSource);
 
-    // C. Build the SVG Document Blueprint
+    // C. Build the SVG Document Blueprint with Balanced Opacity and Backdrop Blur
     const hybridSvgDocument = `<svg xmlns="${SVG_XMLNS_URI}" viewBox="0 0 800 800" width="100%" height="100%">
       <rect width="800" height="800" fill="#151c2c" />
       <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
       
-      <rect width="800" height="800" fill="#0b0f19" fill-opacity="0.45" />
-      <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="5" stroke-opacity="0.15" />
+      <rect width="800" height="800" fill="#0b0f19" fill-opacity="0.3" />
+      <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="5" stroke-opacity="0.2" />
 
       <g transform="translate(400, 110)">
         <rect x="-90" y="-22" width="180" height="44" rx="22" fill="#ffffff" fill-opacity="0.15" />
@@ -182,10 +181,10 @@ export default async function handler(req, res) {
       
       <foreignObject x="80" y="170" width="640" height="440">
         <div xmlns="${XHTML_XMLNS_URI}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 10px;">
-          <div style="background-color: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255, 255, 255, 0.15); padding: 40px 30px; border-radius: 20px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.5); text-align: center;">
-            <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 28px; font-weight: 900; margin: 0 0 18px 0; line-height: 1.3; letter-spacing: 0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.7); word-wrap: break-word;">${sanitizedHeadline}</h1>
-            <div style="width: 50px; height: 3px; background-color: rgba(255, 255, 255, 0.3); margin: 0 auto 20px auto; border-radius: 2px;"></div>
-            <p style="color: rgba(255, 255, 255, 0.95); font-family: system-ui, -apple-system, sans-serif; font-size: 18px; font-weight: 500; line-height: 1.6; margin: 0 0 25px 0; text-shadow: 0 1px 4px rgba(0,0,0,0.4); word-wrap: break-word;">${sanitizedBodyMessage}</p>
+          <div style="background-color: rgba(11, 15, 25, 0.75); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.2); padding: 40px 30px; border-radius: 20px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.6); text-align: center;">
+            <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 28px; font-weight: 900; margin: 0 0 18px 0; line-height: 1.3; letter-spacing: 0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.8); word-wrap: break-word;">${sanitizedHeadline}</h1>
+            <div style="width: 50px; height: 3px; background-color: #38bdf8; margin: 0 auto 20px auto; border-radius: 2px;"></div>
+            <p style="color: rgba(255, 255, 255, 0.95); font-family: system-ui, -apple-system, sans-serif; font-size: 18px; font-weight: 500; line-height: 1.6; margin: 0 0 25px 0; text-shadow: 0 1px 4px rgba(0,0,0,0.5); word-wrap: break-word;">${sanitizedBodyMessage}</p>
             <p style="color: #38bdf8; font-family: system-ui, -apple-system, sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 1px; margin: 0; text-transform: uppercase;">With Love, ${sanitizedSender}</p>
           </div>
         </div>
