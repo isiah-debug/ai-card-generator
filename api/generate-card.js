@@ -49,7 +49,8 @@ async function generatePrimaryAIImage(promptText, uniqueSeed) {
     throw new Error("Missing SILICON_FLOW_KEY environment variable.");
   }
 
-  const siliconFlowImageUrl = "[https://api.siliconflow.cn/v1/image/generations](https://api.siliconflow.cn/v1/image/generations)";
+  // Compiled via character codes to prevent auto-formatting typos
+  const siliconFlowImageUrl = String.fromCharCode(104,116,116,112,115,58,47,47,97,112,105,46,115,105,108,105,99,111,110,102,108,111,119,46,99,110,47,118,49,47,105,109,97,103,101,47,103,101,110,101,114,97,116,105,111,110,115);
   
   const response = await fetch(siliconFlowImageUrl, {
     method: 'POST',
@@ -119,7 +120,6 @@ export default async function handler(req, res) {
     try {
       cardTextDetails = await callLLMProvider(systemPrompt);
     } catch (err) {
-      // Graceful local fallback if LLM breaks / key missing
       cardTextDetails = {
         headline_greeting: "VICTORY ROYALE!",
         inside_message: `Wishing you an incredible birthday filled with epic wins, legendary loot, and non-stop celebrations!`,
@@ -147,9 +147,9 @@ export default async function handler(req, res) {
     const sanitizedSender = sanitizeForXML(sender_name);
     const sanitizedImageUrl = sanitizeForXML(verifiedImageSource);
 
-    // Hardcoded accurately without hidden Markdown formatting wrappers
-    const svgURI = "[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)";
-    const xhtmlURI = "[http://www.w3.org/1999/xhtml](http://www.w3.org/1999/xhtml)";
+    // Compiled via character codes to completely protect XML validation constraints
+    const svgURI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,50,48,48,48,47,115,118,103);
+    const xhtmlURI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,49,57,57,57,47,120,104,116,109,108);
 
     const hybridSvgDocument = `<svg xmlns="${svgURI}" viewBox="0 0 800 800" width="100%" height="100%">
       <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
