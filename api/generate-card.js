@@ -24,7 +24,6 @@ async function callLLMProvider(promptText) {
   const data = await response.json();
   let rawText = data.candidates[0].content.parts[0].text.trim();
   
-  // Clean potential markdown blocks gracefully
   if (rawText.startsWith("```json")) rawText = rawText.replace(/```json|```/g, "").trim();
   if (rawText.startsWith("```")) rawText = rawText.replace(/```/g, "").trim();
   
@@ -35,7 +34,7 @@ async function callLLMProvider(promptText) {
 // MAIN SERVERLESS ROUTE HANDLER
 // ==========================================
 export default async function handler(req, res) {
-  // Hard break caching layers across Vercel and web browsers
+  // Clear any serverless network or browser memory caching permanently
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -62,11 +61,20 @@ export default async function handler(req, res) {
       };
     }
 
-    // 2. TRUE AI IMAGE GENERATION (Hugging Face / Stable Diffusion XL)
-    // Refine the user's prompt into a clean graphic format for best AI generation results
-    const dynamicSearchLabel = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase();
-    const uniqueCardBuster = Math.floor(Math.random() * 100000);
-    const stableWebImageUrl = `https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=800&h=800&q=80&sig=${uniqueCardBuster}&q=${encodeURIComponent(dynamicSearchLabel + " birthday vector")}`;
+    // ==========================================
+    // 2. TRUE AI IMAGE GENERATION (Pollinations Core Router)
+    // ==========================================
+    // Isolate pure keywords and convert spaces into url formatting to prevent rate-limits or 402 queue drops
+    const dynamicSearchLabel = user_prompt
+      .toLowerCase()
+      .replace(/[^a-zA-Z0-9 ]/g, "")
+      .trim()
+      .split(/\s+/)
+      .join("-");
+
+    // Adding style modifiers tells the AI model to draw a beautiful card template, not a random photograph
+    const dynamicSeed = Math.floor(Math.random() * 999999);
+    const trueAIImageUrl = `https://image.pollinations.ai/p/${dynamicSearchLabel}-birthday-card-graphic-vector-illustration?width=800&height=800&seed=${dynamicSeed}&enhance=true`;
 
     // 3. Return payload structure back to your frontend image components
     return res.status(200).json({
@@ -76,7 +84,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: stableWebImageUrl
+        stored_image_url: trueAIImageUrl
       }
     });
 
