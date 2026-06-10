@@ -53,7 +53,7 @@ export default async function handler(req, res) {
   const sender_name = req.body?.sender_name || "Uncle Jimmy";
 
   try {
-    // A. Request custom tailored copy from Nex
+    // A. Request custom tailored copy from Nex LLM
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". 
     Return a clean, raw JSON object ONLY with these exact keys: 
     "headline_greeting": "A short, exciting punchy greeting (e.g., 'Level Up!' or 'Victory Royale!')", 
@@ -73,17 +73,17 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 2. STABLE HIGH-FIDELITY FLUX IMAGE PIPELINE
+    // 2. STABLE FLUX IMAGE GENERATION WITH ENTITIES
     // ==========================================
     const cleanKeywords = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").trim();
-    const descriptivePrompt = `${cleanKeywords}, vibrant digital art style, glowing lighting, highly detailed masterpiece background`;
+    const descriptivePrompt = `${cleanKeywords}, high quality digital art style, vibrant gaming illustration, masterpiece background`;
     const cleanPromptInput = encodeURIComponent(descriptivePrompt);
     
-    // URL FIX: We leverage XML entities (&amp;) instead of regular ampersands to avoid breaking the inline SVG parser
-    const aiSceneryUrl = `https://image.pollinations.ai/p/${cleanPromptInput}?width=800&amp;height=800&amp;model=flux&amp;nologo=true&amp;seed=${Math.floor(Math.random() * 99999)}`;
+    // Generate a robust target image link
+    const aiSceneryUrl = `https://image.pollinations.ai/p/${cleanPromptInput}?width=800&height=800&model=flux&nologo=true&seed=${Math.floor(Math.random() * 99999)}`;
 
     // ==========================================
-    // 3. COMPILE HYBRID ARTWORK OVERLAY (SVG)
+    // 3. COMPILE TEXT WITH SVG USING RAW EMBEDDED GRAPHICS
     // ==========================================
     const sanitizeForXML = (str) => {
       return (str || "")
@@ -97,14 +97,16 @@ export default async function handler(req, res) {
     const sanitizedHeadline = sanitizeForXML(cardTextDetails.headline_greeting).toUpperCase();
     const sanitizedBodyMessage = sanitizeForXML(cardTextDetails.inside_message);
     const sanitizedSender = sanitizeForXML(sender_name);
+    const sanitizedImageUrl = sanitizeForXML(aiSceneryUrl);
 
     const svgURI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,50,48,48,48,47,115,118,103);
     const xhtmlURI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,49,57,57,57,47,120,104,116,109,108);
 
+    // RESTORED FIX: We structure the document as a clean standalone vector, using a background mask setup
     const hybridSvgDocument = `<svg xmlns="${svgURI}" viewBox="0 0 800 800" width="100%" height="100%">
-      <image href="${aiSceneryUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
+      <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
       
-      <rect width="800" height="800" fill="#0b0f19" fill-opacity="0.4" />
+      <rect width="800" height="800" fill="#0b0f19" fill-opacity="0.45" />
       <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="5" stroke-opacity="0.25" />
 
       <g transform="translate(400, 110)">
@@ -114,7 +116,7 @@ export default async function handler(req, res) {
       
       <foreignObject x="80" y="170" width="640" height="440">
         <div xmlns="${xhtmlURI}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 10px;">
-          <div style="background-color: rgba(15, 23, 42, 0.7); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.25); padding: 40px 30px; border-radius: 20px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.6); text-align: center;">
+          <div style="background-color: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.25); padding: 40px 30px; border-radius: 20px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.6); text-align: center;">
             
             <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 32px; font-weight: 900; margin: 0 0 20px 0; padding: 0; line-height: 1.3; letter-spacing: 0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.8); word-wrap: break-word;">
               ${sanitizedHeadline}
@@ -141,8 +143,8 @@ export default async function handler(req, res) {
       </text>
     </svg>`.trim();
 
-    const base64Content = Buffer.from(hybridSvgDocument).toString('base64');
-    const finalStoredImageUrl = `data:image/svg+xml;base64,${base64Content}`;
+    // Alternate structural output: We pass the raw un-encoded data string directly to bypass image tag tracking blocks
+    const finalStoredImageUrl = `data:image/svg+xml;utf8,${encodeURIComponent(hybridSvgDocument)}`;
 
     return res.status(200).json({
       status: "success",
@@ -151,7 +153,8 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: finalStoredImageUrl
+        stored_image_url: finalStoredImageUrl,
+        direct_background_layer_url: aiSceneryUrl // Provided separately if your front-end layout engine needs to render it directly in an <img> tag!
       }
     });
 
