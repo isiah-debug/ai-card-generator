@@ -4,7 +4,7 @@ import fetch from 'node-fetch';
 const SILICON_FLOW_KEY = "sk-aqnelyloqupavmquzwptcigvzzurzmqodkdrrcrfgjxlmybq";
 
 // ==========================================
-// 1. SILICONFLOW NEX-N2-PRO TEXT ENGINE
+// 1. SILICONFLOW NEX-N2-PRO TEXT ENGINE (100% FREE)
 // ==========================================
 async function callLLMProvider(promptText) {
   const siliconFlowUrl = "https://api.siliconflow.cn/v1/chat/completions";
@@ -68,38 +68,11 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 2. LIVE BACKGROUND ILLUSTRATION ENGINE
+    // 2. UNRESTRICTED 100% FREE AI IMAGE ENGINE
     // ==========================================
-    let aiSceneryUrl = "";
-    let useImageBackground = true;
-
-    try {
-      const cleanPromptInput = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").trim();
-      const artPrompt = `Vibrant colorful birthday scene background of ${cleanPromptInput}, stunning digital illustration, stylized anime cartoon art style, bright festive atmosphere, clean composition, no text words watermarks`;
-
-      const aiResponse = await fetch("[https://api.siliconflow.cn/v1/images/generations](https://api.siliconflow.cn/v1/images/generations)", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${SILICON_FLOW_KEY}`
-        },
-        body: JSON.stringify({
-          model: "stabilityai/stable-diffusion-xl-base-1.0",
-          prompt: artPrompt,
-          image_size: "1024x1024"
-        })
-      });
-
-      const aiData = await aiResponse.json();
-      
-      if (aiData?.data && aiData.data.length > 0 && aiData.data[0].url) {
-        aiSceneryUrl = aiData.data[0].url;
-      } else {
-        throw new Error("No image data returned from SiliconFlow");
-      }
-    } catch (imgErr) {
-      useImageBackground = false;
-    }
+    // This swaps out paid Stable Diffusion for a fast, free, keyless photo engine
+    const cleanPromptInput = encodeURIComponent(user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").trim());
+    const aiSceneryUrl = `https://image.pollinations.ai/p/${cleanPromptInput}?width=1024&height=1024&nologo=true&enhance=true`;
 
     // ==========================================
     // 3. COMPILE HYBRID ARTWORK OVERLAY (SVG)
@@ -114,32 +87,16 @@ export default async function handler(req, res) {
     };
 
     const sanitizedTitle = sanitizeForXML(user_prompt).toUpperCase();
-    const sanitizedImageUrl = useImageBackground ? sanitizeForXML(aiSceneryUrl) : "";
+    const sanitizedImageUrl = sanitizeForXML(aiSceneryUrl);
 
-    // Obfuscate URIs using character codes to prevent any markdown link manipulation
     const svgURI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,50,48,48,48,47,115,118,103);
     const xhtmlURI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,49,57,57,57,47,120,104,116,109,108);
 
     const hybridSvgDocument = `<svg xmlns="${svgURI}" viewBox="0 0 800 800" width="100%" height="100%">
-      <defs>
-        <linearGradient id="fallbackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#FF6B6B" />
-          <stop offset="100%" stop-color="#FF8E53" />
-        </linearGradient>
-      </defs>
+      <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
       
-      ${useImageBackground 
-        ? `<image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />`
-        : `<rect width="800" height="800" fill="url(#fallbackGrad)" />`
-      }
-      
-      <rect width="800" height="800" fill="#000000" fill-opacity="${useImageBackground ? "0.45" : "0.1"}" />
+      <rect width="800" height="800" fill="#000000" fill-opacity="0.45" />
       <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="5" stroke-opacity="0.25" />
-      
-      ${!useImageBackground ? `
-        <circle cx="720" cy="80" r="220" fill="#ffffff" fill-opacity="0.07" />
-        <circle cx="80" cy="720" r="180" fill="#ffffff" fill-opacity="0.04" />
-      ` : ''}
 
       <g transform="translate(400, 140)">
         <rect x="-90" y="-22" width="180" height="44" rx="22" fill="#ffffff" fill-opacity="0.2" />
@@ -148,8 +105,8 @@ export default async function handler(req, res) {
       
       <foreignObject x="80" y="210" width="640" height="380">
         <div xmlns="${xhtmlURI}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 20px;">
-          <div style="background-color: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.25); padding: 35px 25px; border-radius: 16px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.15);">
-            <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 32px; font-weight: 900; margin: 0; padding: 0; line-height: 1.4; letter-spacing: 0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.25); text-align: center; word-wrap: break-word; max-width: 100%;">
+          <div style="background-color: rgba(0, 0, 0, 0.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); padding: 35px 25px; border-radius: 16px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+            <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 32px; font-weight: 900; margin: 0; padding: 0; line-height: 1.4; letter-spacing: 0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.5); text-align: center; word-wrap: break-word; max-width: 100%;">
               ${sanitizedTitle}
             </h1>
           </div>
