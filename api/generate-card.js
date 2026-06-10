@@ -74,8 +74,14 @@ async function callLLMProvider(promptText) {
 // 3. IMAGE GENERATION (DYNAMIC PIPELINE WITH FLUX)
 // =========================================================================
 async function generatePrimaryAIImageBase64(promptText, uniqueSeed) {
-  if (!SILICON_FLOW_KEY || !SILICON_FLOW_KEY.startsWith("sk-")) {
+  if (!SILICON_FLOW_KEY) {
     throw new Error("Invalid key format structure configuration layout.");
+  }
+
+  // CLEANING STEP: Automatically fixes prefix typos or double "Bearer" issues
+  let cleanKey = SILICON_FLOW_KEY.trim();
+  if (cleanKey.toLowerCase().startsWith("bearer ")) {
+    cleanKey = cleanKey.slice(7).trim();
   }
 
   const optimizedPrompt = `${promptText.trim()}, retro cubic block landscape voxel artwork, pixel art style, blue sky, cinematic lighting, no text, masterpiece painting`;
@@ -84,7 +90,7 @@ async function generatePrimaryAIImageBase64(promptText, uniqueSeed) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SILICON_FLOW_KEY.trim()}`
+      'Authorization': `Bearer ${cleanKey}`
     },
     body: JSON.stringify({
       model: "black-forest-labs/FLUX.1-schnell",
@@ -94,7 +100,6 @@ async function generatePrimaryAIImageBase64(promptText, uniqueSeed) {
       num_inference_steps: 4
     })
   });
-
   if (!response.ok) {
     const errText = await response.text();
     throw new Error(`[SiliconFlow Server Error]: ${response.status} - ${errText}`);
