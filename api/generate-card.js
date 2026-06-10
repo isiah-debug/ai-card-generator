@@ -71,14 +71,14 @@ async function callLLMProvider(promptText) {
 }
 
 // =========================================================================
-// 3. IMAGE GENERATION (DYNAMIC INPUT PIPELINE)
+// 3. IMAGE GENERATION (DYNAMIC PIPELINE WITH FLUX)
 // =========================================================================
 async function generatePrimaryAIImageBase64(promptText, uniqueSeed) {
   if (!SILICON_FLOW_KEY || !SILICON_FLOW_KEY.startsWith("sk-")) {
     throw new Error("Invalid key format structure configuration layout.");
   }
 
-  // FIXED: Now injects your dynamic promptText (e.g. "minecraft castle") safely into the model
+  // Grabs your frontend input dynamically (e.g., "minecraft castle") and pipes it directly to FLUX
   const optimizedPrompt = `${promptText.trim()}, retro cubic block landscape voxel artwork, pixel art style, blue sky, cinematic lighting, no text, masterpiece painting`;
 
   const response = await fetch(IMAGE_API_URL, {
@@ -115,7 +115,7 @@ async function generatePrimaryAIImageBase64(promptText, uniqueSeed) {
   return piece;
 }
 
-// Static fallback vector graphic configuration
+// Static fallback vector blocky graphics (only used if network cuts out or server drops)
 function generateSafeLocalFallbackBackground() {
   const rawVectorSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="#5cafff" /><rect x="550" y="80" width="90" height="90" fill="#fffebd" /><rect x="540" y="70" width="110" height="110" fill="#ffffd6" fill-opacity="0.3" /><g fill="#ffffff" fill-opacity="0.85"><rect x="60" y="120" width="220" height="40" /><rect x="100" y="100" width="140" height="20" /><rect x="420" y="160" width="180" height="30" /></g><g fill="#2b593f"><rect x="0" y="380" width="200" height="420" /><rect x="150" y="340" width="160" height="460" /><rect x="280" y="400" width="120" height="400" /><rect x="360" y="320" width="220" height="480" /><rect x="540" y="360" width="260" height="440" /></g><g fill="#4a852c"><rect x="0" y="460" width="800" height="340" /></g><g fill="#376620"><rect x="80" y="460" width="60" height="40" /><rect x="240" y="460" width="80" height="30" /><rect x="480" y="460" width="100" height="50" /><rect x="680" y="460" width="70" height="40" /></g><g fill="#40542a"><rect x="100" y="500" width="600" height="240" /><rect x="140" y="480" width="520" height="20" /></g><g fill="#1d61a1" fill-opacity="0.9"><rect x="120" y="510" width="560" height="210" /><rect x="150" y="490" width="500" height="20" /></g><g fill="#3782c9" fill-opacity="0.6"><rect x="180" y="530" width="80" height="20" /><rect x="440" y="520" width="120" height="20" /><rect x="260" y="600" width="140" height="30" /><rect x="480" y="640" width="90" height="20" /><rect x="160" y="660" width="110" height="25" /></g><rect width="800" height="800" fill="none" stroke="rgba(0,0,0,0.15)" stroke-width="20" /></svg>`;
   return `data:image/svg+xml;base64,${Buffer.from(rawVectorSvg.trim()).toString('base64')}`;
@@ -165,7 +165,6 @@ export default async function handler(req, res) {
 
     let finalInlineImageSource;
     try {
-      // Dynamic user_prompt parameter passed here seamlessly
       finalInlineImageSource = await generatePrimaryAIImageBase64(user_prompt, uniqueSeed);
     } catch (primaryErr) {
       finalInlineImageSource = generateSafeLocalFallbackBackground();
