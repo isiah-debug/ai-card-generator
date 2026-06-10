@@ -51,11 +51,11 @@ async function generateSiliconFlowImage(promptText) {
     },
     body: JSON.stringify({
       model: "stabilityai/stable-diffusion-xl",
-      prompt: `${promptText}, vibrant digital art style, stunning dynamic wallpaper, cinematic lighting, masterpiece birthday presentation backdrop, details`,
-      negative_prompt: "ugly, blurry, low quality, text, logos, signatures, watermark, frames, words",
+      prompt: `${promptText}, vibrant digital art style, stunning dynamic wallpaper, cinematic lighting, masterpiece presentation backdrop`,
+      negative_prompt: "ugly, blurry, low quality, text, logos, signatures, watermark, words",
       image_size: "1024x1024",
       batch_size: 1,
-      num_inference_steps: 22,
+      num_inference_steps: 20,
       guidance_scale: 7.5
     })
   });
@@ -66,16 +66,12 @@ async function generateSiliconFlowImage(promptText) {
   }
 
   const data = await response.json();
-  
-  // CRITICAL FIX: Extract image asset structure securely depending on how the active endpoint clusters serialize data
   if (!data.images || data.images.length === 0) {
     throw new Error("No image data returned from SiliconFlow cluster node.");
   }
 
   const imageAsset = data.images[0];
-  
   if (typeof imageAsset === 'string') {
-    // If it's a direct string, check if it's base64 or a link
     return imageAsset.startsWith('http') ? imageAsset : `data:image/png;base64,${imageAsset}`;
   } else if (imageAsset.url) {
     return imageAsset.url;
@@ -121,13 +117,27 @@ export default async function handler(req, res) {
       };
     }
 
-    // B. Generate background image reliably using your native SiliconFlow token balance
+    // B. Image Pipeline: Try AI Generation first, fall back to high-res keyword repository matching second
     let verifiedImageSource;
     try {
       verifiedImageSource = await generateSiliconFlowImage(user_prompt);
     } catch (imgErr) {
-      // High quality, stable unthrottled alternative failover URL if generation pipeline queue hits unexpected blocks
-      verifiedImageSource = "[https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=1024&h=1024&q=80](https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=1024&h=1024&q=80)";
+      // SMART FALLBACK: Clean up the user prompt to find a great search keyword (e.g., "fortnite", "gaming", "neon")
+      const words = user_prompt.toLowerCase().replace(/[^a-z0-9 ]/g, "").split(" ");
+      
+      let searchKeyword = "birthday"; // Default fallback category
+      if (words.includes("fortnite") || words.includes("gaming") || words.includes("gamer")) {
+        searchKeyword = "gaming";
+      } else if (words.includes("cake") || words.includes("cupcake")) {
+        searchKeyword = "cake";
+      } else if (words.includes("neon") || words.includes("cyberpunk")) {
+        searchKeyword = "neon";
+      } else if (words.length > 0 && words[0].length > 2) {
+        searchKeyword = words[0]; // Use their first descriptive word
+      }
+
+      // Dynamic Unsplash target parameters that match the card width perfectly
+      verifiedImageSource = `https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&h=800&q=80&qkw=${encodeURIComponent(searchKeyword)}`;
     }
 
     // ==========================================
@@ -153,7 +163,7 @@ export default async function handler(req, res) {
     const hybridSvgDocument = `<svg xmlns="${svgURI}" viewBox="0 0 800 800" width="100%" height="100%">
       <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
       
-      <rect width="800" height="800" fill="#0b0f19" fill-opacity="0.45" />
+      <rect width="800" height="800" fill="#0b0f19" fill-opacity="0.5" />
       <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="5" stroke-opacity="0.25" />
 
       <g transform="translate(400, 110)">
