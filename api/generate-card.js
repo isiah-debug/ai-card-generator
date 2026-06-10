@@ -34,7 +34,7 @@ async function callLLMProvider(promptText) {
 // MAIN SERVERLESS ROUTE HANDLER
 // ==========================================
 export default async function handler(req, res) {
-  // Prevent any edge network or web browser from caching response payloads
+  // Prevent any edge network caching layers from serving stale data
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
   const sender_name = req.body?.sender_name || "Uncle Jimmy";
 
   try {
-    // 1. Generate text details utilizing the Gemini connection wrapper
+    // 1. Generate text data parameters utilizing Gemini
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown formatting or backticks.`;
     
     let cardTextDetails;
@@ -64,16 +64,16 @@ export default async function handler(req, res) {
     // ==========================================
     // 2. CRASH-PROOF NATIVE SVG GENERATION ENGINE
     // ==========================================
-    // Pick color values cleanly based on theme lengths to guarantee nice visuals
+    // Rotate color themes based on prompt parameters to guarantee visual variation
     const colorThemes = [
-      { start: "#FF6B6B", end: "#FF8E53" }, // Warm Coral Gradient
-      { start: "#4E65FF", end: "#92EFFD" }, // Cool Neon Cyan Blue
-      { start: "#11998E", end: "#38EF7D" }, // Fresh Minty Green
-      { start: "#7F00FF", end: "#E100FF" }  // Deep Cyber Purple
+      { start: "#4E65FF", end: "#92EFFD" }, // Cyan/Blue Gradient
+      { start: "#FF6B6B", end: "#FF8E53" }, // Coral Orange Gradient
+      { start: "#7F00FF", end: "#E100FF" }, // Cyber Purple Gradient
+      { start: "#11998E", end: "#38EF7D" }  // Mint Green Gradient
     ];
     const chosenTheme = colorThemes[user_prompt.length % colorThemes.length];
 
-    // Sanitize user strings so they don't break XML string rendering formatting rules
+    // Sanitize user text inputs to conform with XML structural requirements
     const sanitizedTitle = user_prompt
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -81,8 +81,8 @@ export default async function handler(req, res) {
       .replace(/"/g, "&quot;")
       .toUpperCase();
 
-    // 100% compliant, verified standalone XML SVG markup document structure
-    const pureSvgGraphic = `<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" viewBox="0 0 800 800" width="100%" height="100%">
+    // Plain, strictly compliant inline XML markup with clean namespace variables
+    const cleanSvgDocument = `<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" viewBox="0 0 800 800" width="100%" height="100%">
       <defs>
         <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="${chosenTheme.start}" />
@@ -101,7 +101,7 @@ export default async function handler(req, res) {
         <text text-anchor="middle" y="7" font-family="system-ui, -apple-system, sans-serif" font-weight="bold" font-size="18" fill="#ffffff" letter-spacing="4">CELEBRATION</text>
       </g>
       
-      <text x="400" y="420" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="42" fill="#ffffff" letter-spacing="2">
+      <text x="400" y="420" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="36" fill="#ffffff" letter-spacing="2">
         ${sanitizedTitle}
       </text>
       
@@ -110,13 +110,13 @@ export default async function handler(req, res) {
       <text x="400" y="530" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="20" fill="#ffffff" letter-spacing="3" opacity="0.9">
         SPECIALLY CREATED FOR YOU
       </text>
-    </svg>`;
+    </svg>`.trim();
 
-    // Correctly bundle the raw vector string inside an un-throttled base64 SVG data URI format string
-    const base64Content = Buffer.from(pureSvgGraphic).toString('base64');
+    // Bundle the SVG directly into an un-throttled base64 URL wrapper data string
+    const base64Content = Buffer.from(cleanSvgDocument).toString('base64');
     const secureDynamicVectorStream = `data:image/svg+xml;base64,${base64Content}`;
 
-    // 3. Return payload structure back to your frontend image components
+    // 3. Return the fully formed payload data to the client frontend
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
