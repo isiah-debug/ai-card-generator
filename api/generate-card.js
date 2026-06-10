@@ -1,11 +1,13 @@
 // =========================================================================
-// 1. CONFIGURATION, PARSING & PROTECTED STRINGS
+// 1. CONFIGURATION, PARSING & PROTECTED STRINGS (TYPO FIXED)
 // =========================================================================
 const SILICON_FLOW_KEY = process.env.SILICON_FLOW_KEY;
 
 const TEXT_API_URL = String.fromCharCode(104,116,116,112,115,58,47,47,97,112,105,46,115,105,108,105,99,111,110,102,108,111,119,46,99,110,47,118,49,47,99,104,97,116,47,99,111,110,112,108,101,116,105,111,110,115);
 const IMAGE_API_URL = String.fromCharCode(104,116,116,115,58,47,47,97,112,105,46,115,105,108,105,99,111,110,102,108,111,119,46,99,110,47,118,49,47,105,109,97,103,101,115,47,103,101,110,101,114,97,116,105,111,110,115);
-const BACKUP_BASE_URL = String.fromCharCode(104,116,116,115,58,47,47,105,109,97,103,101,46,112,111,108,108,105,110,97,116,105,111,110,115,46,97,105,47,112,47);
+
+// FIXED: Added missing 112 ('p') character code back in to form a completely unbroken https:// prefix
+const BACKUP_BASE_URL = String.fromCharCode(104,116,116,112,115,58,47,47,105,109,97,103,101,46,112,111,108,108,105,110,97,116,105,111,110,115,46,97,105,47,112,47);
 
 const SVG_XMLNS_URI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,50,48,48,48,47,115,118,103);
 const XHTML_XMLNS_URI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,49,57,57,57,47,120,104,116,109,108);
@@ -149,12 +151,11 @@ export default async function handler(req, res) {
 
     const uniqueSeed = Math.floor(Math.random() * 9999999);
 
-    // B. AI-Powered Image Generation (Fast Fetch Only)
+    // B. AI-Powered Image Generation Pipeline
     let verifiedImageSource;
     try {
       verifiedImageSource = await generatePrimaryAIImage(user_prompt, uniqueSeed);
     } catch (primaryErr) {
-      // Direct, fast path to CDN fallback to protect the execution stack window
       const enhancedAIPrompt = encodeURIComponent(`${user_prompt}, stylized fantasy vector backdrop illustration, no text`);
       verifiedImageSource = `${BACKUP_BASE_URL}${enhancedAIPrompt}?width=800&height=800&model=flux&seed=${uniqueSeed}&nologo=true`;
     }
@@ -197,6 +198,10 @@ export default async function handler(req, res) {
       <text x="400" y="700" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="18" fill="#ffffff" letter-spacing="3" opacity="0.75">SPECIALLY CREATED FOR YOU</text>
     </svg>`.trim();
 
+    // Convert the compiled SVG document into a browser-safe Base64 Data URI string
+    const base64Content = Buffer.from(hybridSvgDocument).toString('base64');
+    const finalStoredImageUrl = `data:image/svg+xml;base64,${base64Content}`;
+
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
@@ -204,7 +209,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: hybridSvgDocument // Returning the raw SVG string allows the client to mount it directly without canvas rendering timeouts
+        stored_image_url: finalStoredImageUrl
       }
     });
 
