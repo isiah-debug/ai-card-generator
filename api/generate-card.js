@@ -4,7 +4,7 @@ import fetch from 'node-fetch';
 const GEMINI_API_KEY = "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q";
 
 // ==========================================
-// THE TEXT LLM WRAPPER ENGINE
+// THE WRAPPER ENGINE (Easily swap models here)
 // ==========================================
 async function callLLMProvider(promptText) {
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -24,6 +24,7 @@ async function callLLMProvider(promptText) {
   const data = await response.json();
   let rawText = data.candidates[0].content.parts[0].text.trim();
   
+  // Clean potential markdown blocks gracefully
   if (rawText.startsWith("```json")) rawText = rawText.replace(/```json|```/g, "").trim();
   if (rawText.startsWith("```")) rawText = rawText.replace(/```/g, "").trim();
   
@@ -34,7 +35,7 @@ async function callLLMProvider(promptText) {
 // MAIN SERVERLESS ROUTE HANDLER
 // ==========================================
 export default async function handler(req, res) {
-  // Clear any serverless network or browser memory caching permanently
+  // Hard-break serverless caching layers across all CDN networks & browsers
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -47,7 +48,7 @@ export default async function handler(req, res) {
   const sender_name = req.body?.sender_name || "Uncle Jimmy";
 
   try {
-    // 1. Generate text using our Gemini wrapper
+    // 1. Generate text using our custom wrapper function
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown formatting or backticks.`;
     
     let cardTextDetails;
@@ -61,34 +62,19 @@ export default async function handler(req, res) {
       };
     }
 
-    // 2. TRUE AI IMAGE GENERATION (Hugging Face / Stable Diffusion XL)
-    let secureDataImageUrl;
-    try {
-      const stableDiffusionModelUrl = "[https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0](https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0)";
-      const refinedAIPrompt = `${user_prompt}, beautiful vibrant greeting card design, vector graphic illustration, 8k resolution, crisp detail`;
+    // 2. Generate an uncacheable graphic link using LoremFlickr's open keyword interface
+    const cleanTags = user_prompt
+      .toLowerCase()
+      .replace(/[^a-zA-Z0-9 ]/g, "")
+      .trim()
+      .split(/\s+/)
+      .join(",");
 
-      const imageEngineResponse = await fetch(stableDiffusionModelUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inputs: refinedAIPrompt }),
-      });
+    // Appending a massive, randomized timestamp token forces the CDN to calculate a brand new dynamic match
+    const cacheBuster = Date.now() + Math.floor(Math.random() * 10000);
+    const dynamicLiveImageUrl = `https://loremflickr.com/800/800/${encodeURIComponent(cleanTags)}?lock=${cacheBuster}`;
 
-      // If Hugging Face is heavily loaded, automatically drop back to a reliable backup link
-      if (!imageEngineResponse.ok) {
-        throw new Error("Hugging Face engine busy");
-      }
-
-      // Convert the raw image binary buffer array into a totally un-throttled base64 source link
-      const imageBuffer = await imageEngineResponse.arrayBuffer();
-      const base64Image = Buffer.from(imageBuffer).toString('base64');
-      secureDataImageUrl = `data:image/jpeg;base64,${base64Image}`;
-
-    } catch (imgErr) {
-      // Flawless, vibrant stock backup fallback if any external networks timeout
-      secureDataImageUrl = "[https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=800&h=800&q=80](https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=800&h=800&q=80)";
-    }
-
-    // 3. Send payload object directly back to your frontend template
+    // 3. Return payload structure back to your frontend image components
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
@@ -96,7 +82,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: secureDataImageUrl
+        stored_image_url: dynamicLiveImageUrl
       }
     });
 
