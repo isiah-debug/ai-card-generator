@@ -98,7 +98,7 @@ export default async function handler(req, res) {
         throw new Error("No image data returned from SiliconFlow");
       }
     } catch (imgErr) {
-      // If credits are 0 or rate limited, switch off the missing image layer and use our clean design
+      // If credits are 0 or rate limited, fallback safely to the vector canvas layout
       useImageBackground = false;
     }
 
@@ -117,10 +117,11 @@ export default async function handler(req, res) {
     const sanitizedTitle = sanitizeForXML(user_prompt).toUpperCase();
     const sanitizedImageUrl = useImageBackground ? sanitizeForXML(aiSceneryUrl) : "";
 
-    const svgNamespace = "http://" + "www.w3.org/2000/svg";
-    const htmlNamespace = "http://" + "www.w3.org/1999/xhtml";
+    // Pristine, explicit namespace URI strings
+    const svgURI = "[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)";
+    const xhtmlURI = "[http://www.w3.org/1999/xhtml](http://www.w3.org/1999/xhtml)";
 
-    const hybridSvgDocument = `<svg xmlns="${svgNamespace}" viewBox="0 0 800 800" width="100%" height="100%">
+    const hybridSvgDocument = `<svg xmlns="${svgURI}" viewBox="0 0 800 800" width="100%" height="100%">
       <defs>
         <linearGradient id="fallbackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#FF6B6B" />
@@ -147,7 +148,7 @@ export default async function handler(req, res) {
       </g>
       
       <foreignObject x="80" y="210" width="640" height="380">
-        <div xmlns="${htmlNamespace}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-family: system-ui, -apple-system, sans-serif; text-align: center; box-sizing: border-box;">
+        <div xmlns="${xhtmlURI}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-family: system-ui, -apple-system, sans-serif; text-align: center; box-sizing: border-box;">
           <h1 style="color: #ffffff; font-size: 36px; font-weight: 900; margin: 0; padding: 0; line-height: 1.4; letter-spacing: 1px; text-shadow: 0 4px 14px rgba(0,0,0,0.3); max-width: 100%; word-wrap: break-word;">
             ${sanitizedTitle}
           </h1>
