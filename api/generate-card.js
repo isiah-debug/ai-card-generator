@@ -1,9 +1,41 @@
 import fetch from 'node-fetch';
 
+// CONFIGURATION VARIABLES
 const GEMINI_API_KEY = "AQ.Ab8RN6KLX9CMmNr0xeMOpItRqAwnUGpT6IaqqPRbZOYN07vR3Q";
 
+// ==========================================
+// THE WRAPPER ENGINE (Easily swap models here)
+// ==========================================
+async function callLLMProvider(promptText) {
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+  
+  const response = await fetch(geminiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: promptText }] }]
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`LLM Provider API error: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  let rawText = data.candidates[0].content.parts[0].text.trim();
+  
+  // Clean potential markdown blocks gracefully
+  if (rawText.startsWith("```json")) rawText = rawText.replace(/```json|```/g, "").trim();
+  if (rawText.startsWith("```")) rawText = rawText.replace(/```/g, "").trim();
+  
+  return JSON.parse(rawText);
+}
+
+// ==========================================
+// MAIN SERVERLESS ROUTE HANDLER
+// ==========================================
 export default async function handler(req, res) {
-  // Clear any edge network caching configurations permanently
+  // Hard-break serverless caching layers across all CDN networks & browsers
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -16,42 +48,21 @@ export default async function handler(req, res) {
   const sender_name = req.body?.sender_name || "Uncle Jimmy";
 
   try {
-    // ==========================================
-    // STEP 1: REST CUSTOM TEXT GENERATION (GEMINI)
-    // ==========================================
-    const textPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown codeblocks, formatting, or backticks.`;
-    
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    // 1. Generate text using our custom wrapper function
+    const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown formatting or backticks.`;
     
     let cardTextDetails;
     try {
-      const geminiResponse = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: textPrompt }] }]
-        })
-      });
-
-      const geminiData = await geminiResponse.json();
-      let rawText = geminiData.candidates[0].content.parts[0].text.trim();
-      
-      if (rawText.startsWith("```json")) rawText = rawText.replace(/```json|```/g, "").trim();
-      if (rawText.startsWith("```")) rawText = rawText.replace(/```/g, "").trim();
-      
-      cardTextDetails = JSON.parse(rawText);
-    } catch (apiErr) {
+      cardTextDetails = await callLLMProvider(systemPrompt);
+    } catch (llmErr) {
       cardTextDetails = {
         headline_greeting: "Happy Birthday!",
-        inside_message: `Wishing you an incredible day filled with fun adventures, great memories, and lots of smiles!`,
+        inside_message: `Wishing you an incredible day filled with fun adventures and great memories!`,
         wishing_tone: "Joyful"
       };
     }
 
-    // ==========================================
-    // STEP 2: 100% OPEN DYNAMIC GRAPHIC STREAM
-    // ==========================================
-    // Extracts clean, comma-separated search tags for the LoremFlickr processing engine
+    // 2. Generate an uncacheable graphic link using LoremFlickr's open keyword interface
     const cleanTags = user_prompt
       .toLowerCase()
       .replace(/[^a-zA-Z0-9 ]/g, "")
@@ -59,13 +70,11 @@ export default async function handler(req, res) {
       .split(/\s+/)
       .join(",");
 
-    // Appending a random buster breaks browser memory hooks and forces a live keyword match evaluation
-    const cacheBuster = Math.floor(Math.random() * 99999);
-    const modernLiveUrl = `https://loremflickr.com/800/800/${encodeURIComponent(cleanTags)}?lock=${cacheBuster}`;
+    // Appending a massive, randomized timestamp token forces the CDN to calculate a brand new dynamic match
+    const cacheBuster = Date.now() + Math.floor(Math.random() * 10000);
+    const dynamicLiveImageUrl = `https://loremflickr.com/800/800/${encodeURIComponent(cleanTags)}?lock=${cacheBuster}`;
 
-    // ==========================================
-    // STEP 3: OUTPUT CLEAN PRODUCTION PAYLOAD
-    // ==========================================
+    // 3. Return payload structure back to your frontend image components
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
@@ -73,7 +82,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: modernLiveUrl
+        stored_image_url: dynamicLiveImageUrl
       }
     });
 
