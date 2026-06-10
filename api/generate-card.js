@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
 
-// CONFIGURATION VARIABLES
+// CONFIGURATION KEYS
 const SILICON_FLOW_KEY = "sk-aqnelyloqupavmquzwptcigvzzurzmqodkdrrcrfgjxlmybq";
 
 // ==========================================
@@ -19,13 +19,13 @@ async function callLLMProvider(promptText) {
       model: "nex-agi/Nex-N2-Pro",
       messages: [{ role: "user", content: promptText }],
       response_format: { type: "json_object" }, 
-      temperature: 0.7
+      temperature: 0.8
     })
   });
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`SiliconFlow LLM error: ${response.status} - ${errText}`);
+    throw new Error(`LLM Error: ${response.status}`);
   }
 
   const data = await response.json();
@@ -38,9 +38,9 @@ async function callLLMProvider(promptText) {
 }
 
 // ==========================================
-// 2. SILICONFLOW NATIVE IMAGE ENGINE (SDXL)
+// 2. PRIMARY AI IMAGE ENGINE (SILICONFLOW SDXL)
 // ==========================================
-async function generateSiliconFlowImage(promptText) {
+async function generatePrimaryAIImage(promptText, uniqueSeed) {
   const siliconFlowImageUrl = "[https://api.siliconflow.cn/v1/image/generations](https://api.siliconflow.cn/v1/image/generations)";
   
   const response = await fetch(siliconFlowImageUrl, {
@@ -51,35 +51,32 @@ async function generateSiliconFlowImage(promptText) {
     },
     body: JSON.stringify({
       model: "stabilityai/stable-diffusion-xl",
-      prompt: `${promptText}, vibrant digital art style, stunning dynamic wallpaper, cinematic lighting, masterpiece presentation backdrop`,
-      negative_prompt: "ugly, blurry, low quality, text, logos, signatures, watermark, frames, words",
+      // Appending a distinct visual style modifier to fulfill the creative asset requirement
+      prompt: `${promptText}, vibrant 3d gaming illustration, beautiful digital art masterpiece background, gaming backdrop wallpaper style`,
+      negative_prompt: "ugly, blurry, low quality, text, logos, signatures, watermarks, words, letters, borders",
       image_size: "1024x1024",
       batch_size: 1,
-      num_inference_steps: 22,
+      seed: uniqueSeed, // Forces the AI engine to generate a completely distinct image layout every time
+      num_inference_steps: 20,
       guidance_scale: 7.5
     })
   });
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`SiliconFlow Image error: ${response.status} - ${errText}`);
-  }
+  if (!response.ok) throw new Error("Primary cluster node busy");
 
   const data = await response.json();
-  if (!data.images || data.images.length === 0) {
-    throw new Error("No image data returned from SiliconFlow cluster node.");
-  }
+  const asset = data.images[0];
+  return typeof asset === 'string' ? (asset.startsWith('http') ? asset : `data:image/png;base64,${asset}`) : (asset.url || `data:image/png;base64,${asset.b64_json}`);
+}
 
-  const imageAsset = data.images[0];
-  if (typeof imageAsset === 'string') {
-    return imageAsset.startsWith('http') ? imageAsset : `data:image/png;base64,${imageAsset}`;
-  } else if (imageAsset.url) {
-    return imageAsset.url;
-  } else if (imageAsset.b64_json) {
-    return `data:image/png;base64,${imageAsset.b64_json}`;
-  }
-  
-  throw new Error("Unknown asset format structure from image engine.");
+// ==========================================
+// 3. BACKUP AI IMAGE ENGINE (POLLINATIONS FLUX SYSTEM)
+// ==========================================
+// If the primary server fails or is throttled, this falls back to a secondary, instantly rendering AI cluster
+function generateBackupAIImage(promptText, uniqueSeed) {
+  const enhancedAIPrompt = encodeURIComponent(`${promptText}, colorful 3d gaming style, beautiful background presentation canvas, no text`);
+  // Using the high-speed Flux model with an appended unique seed to guarantee distinct layout outputs
+  return `https://image.pollinations.ai/p/${enhancedAIPrompt}?width=800&height=800&model=flux&seed=${uniqueSeed}&nologo=true`;
 }
 
 // ==========================================
@@ -90,15 +87,13 @@ export default async function handler(req, res) {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const user_prompt = req.body?.user_prompt || "birthday cake";
+  const user_prompt = req.body?.user_prompt || "Fortnite gaming character dancing";
   const sender_name = req.body?.sender_name || "Chris";
 
   try {
-    // A. Format custom greeting text
+    // A. Generate AI Birthday Card Wording
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". 
     Return a clean, raw JSON object ONLY with these exact keys: 
     "headline_greeting": "A short, exciting punchy greeting (e.g., 'Level Up!' or 'Victory Royale!')", 
@@ -109,53 +104,32 @@ export default async function handler(req, res) {
     let cardTextDetails;
     try {
       cardTextDetails = await callLLMProvider(systemPrompt);
-      if (!cardTextDetails.headline_greeting || !cardTextDetails.inside_message) {
-        throw new Error("Missing text fields.");
-      }
-    } catch (llmErr) {
+    } catch (err) {
       cardTextDetails = {
         headline_greeting: "VICTORY ROYALE!",
-        inside_message: `Wishing you an incredible day filled with epic wins, legendary loot, and amazing celebrations!`,
+        inside_message: `Wishing you an incredible birthday filled with epic wins, legendary loot, and non-stop celebrations!`,
         wishing_tone: "Joyful"
       };
     }
 
-    // B. Image Pipeline: Try AI first, break cache with dynamic seed keywords second
+    // GENERATE A TRULY RANDOM NUMERIC SEED FOR THE AI ENGINE
+    const uniqueSeed = Math.floor(Math.random() * 9999999);
+
+    // B. AI-ONLY Image Pipeline (No Static Stock Photos Allowed)
     let verifiedImageSource;
     try {
-      verifiedImageSource = await generateSiliconFlowImage(user_prompt);
-    } catch (imgErr) {
-      // Clean up the prompt to match dynamic categories
-      const words = user_prompt.toLowerCase().replace(/[^a-z0-9 ]/g, "").split(" ");
-      
-      let searchKeyword = "birthday"; 
-      if (words.includes("fortnite") || words.includes("gaming") || words.includes("gamer") || words.includes("dance")) {
-        searchKeyword = "gaming";
-      } else if (words.includes("cake") || words.includes("cupcake") || words.includes("balloons")) {
-        searchKeyword = "cake";
-      } else if (words.includes("neon") || words.includes("cyberpunk")) {
-        searchKeyword = "neon";
-      } else if (words.length > 0 && words[0].length > 2) {
-        searchKeyword = words[0]; 
-      }
-
-      // CRITICAL DYNAMIC IMAGE ROTATION FIX:
-      // We mix a mathematically random integer signature parameter ('sig') directly into the lookup URL.
-      // This forces the internet layout delivery engine to shuffle results and pull a DIFFERENT gaming image every time!
-      const randomSeedSignature = Math.floor(Math.random() * 50000);
-      verifiedImageSource = `https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&h=800&q=80&sig=${randomSeedSignature}&qkw=${encodeURIComponent(searchKeyword)}`;
+      // Try generating via your primary Stable Diffusion cluster first
+      verifiedImageSource = await generatePrimaryAIImage(user_prompt, uniqueSeed);
+    } catch (primaryErr) {
+      // If busy or queue is full, instantly fall back to a dedicated live Flux AI generator image node
+      verifiedImageSource = generateBackupAIImage(user_prompt, uniqueSeed);
     }
 
     // ==========================================
-    // 3. COMPILE OVERLAY ASYNC GRAPHIC (SVG)
+    // 4. ASSEMBLE SVG TEMPLATE WITH INLINE ASSETS
     // ==========================================
     const sanitizeForXML = (str) => {
-      return (str || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&apos;");
+      return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
     };
 
     const sanitizedHeadline = sanitizeForXML(cardTextDetails.headline_greeting).toUpperCase();
@@ -169,8 +143,8 @@ export default async function handler(req, res) {
     const hybridSvgDocument = `<svg xmlns="${svgURI}" viewBox="0 0 800 800" width="100%" height="100%">
       <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
       
-      <rect width="800" height="800" fill="#0b0f19" fill-opacity="0.5" />
-      <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="5" stroke-opacity="0.25" />
+      <rect width="800" height="800" fill="#0b0f19" fill-opacity="0.45" />
+      <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="5" stroke-opacity="0.2" />
 
       <g transform="translate(400, 110)">
         <rect x="-90" y="-22" width="180" height="44" rx="22" fill="#ffffff" fill-opacity="0.2" />
@@ -179,19 +153,19 @@ export default async function handler(req, res) {
       
       <foreignObject x="80" y="170" width="640" height="440">
         <div xmlns="${xhtmlURI}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 10px;">
-          <div style="background-color: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.25); padding: 40px 30px; border-radius: 20px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.6); text-align: center;">
+          <div style="background-color: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.2); padding: 40px 30px; border-radius: 20px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.5); text-align: center;">
             
-            <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 30px; font-weight: 900; margin: 0 0 20px 0; padding: 0; line-height: 1.3; letter-spacing: 0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.8); word-wrap: break-word;">
+            <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 28px; font-weight: 900; margin: 0 0 18px 0; line-height: 1.3; letter-spacing: 0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.7); word-wrap: break-word;">
               ${sanitizedHeadline}
             </h1>
             
-            <div style="width: 60px; height: 3px; background-color: rgba(255, 255, 255, 0.4); margin: 0 auto 20px auto; border-radius: 2px;"></div>
+            <div style="width: 50px; height: 3px; background-color: rgba(255, 255, 255, 0.35); margin: 0 auto 20px auto; border-radius: 2px;"></div>
             
-            <p style="color: rgba(255, 255, 255, 0.95); font-family: system-ui, -apple-system, sans-serif; font-size: 18px; font-weight: 500; line-height: 1.6; margin: 0 0 25px 0; padding: 0; text-shadow: 0 1px 4px rgba(0,0,0,0.5); word-wrap: break-word;">
+            <p style="color: rgba(255, 255, 255, 0.95); font-family: system-ui, -apple-system, sans-serif; font-size: 18px; font-weight: 500; line-height: 1.6; margin: 0 0 25px 0; text-shadow: 0 1px 4px rgba(0,0,0,0.4); word-wrap: break-word;">
               ${sanitizedBodyMessage}
             </p>
 
-            <p style="color: #38bdf8; font-family: system-ui, -apple-system, sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 1px; margin: 0; padding: 0; text-transform: uppercase;">
+            <p style="color: #38bdf8; font-family: system-ui, -apple-system, sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 1px; margin: 0; text-transform: uppercase;">
               With Love, ${sanitizedSender}
             </p>
             
@@ -199,9 +173,8 @@ export default async function handler(req, res) {
         </div>
       </foreignObject>
       
-      <line x1="330" y1="650" x2="470" y2="650" stroke="#ffffff" stroke-width="4" stroke-opacity="0.5" stroke-linecap="round" />
-      
-      <text x="400" y="700" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="18" fill="#ffffff" letter-spacing="3" opacity="0.85">
+      <line x1="330" y1="650" x2="470" y2="650" stroke="#ffffff" stroke-width="4" stroke-opacity="0.4" stroke-linecap="round" />
+      <text x="400" y="700" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="18" fill="#ffffff" letter-spacing="3" opacity="0.8">
         SPECIALLY CREATED FOR YOU
       </text>
     </svg>`.trim();
