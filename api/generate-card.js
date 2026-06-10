@@ -68,14 +68,11 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 2. REFINED SCENERY IMAGE ENGINE (POLLINATIONS)
+    // 2. UNRESTRICTED HD PHOTOGRAPHY PIPELINE (UNSPLASH)
     // ==========================================
-    // Clean and polish prompt terms to guarantee the engine renders a stunning HD scenery background
-    let enhancedPrompt = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").trim();
-    enhancedPrompt += ", vibrant cinematic lightning, gaming illustration style, ultra detailed 4k wallpaper";
-    
-    const cleanPromptInput = encodeURIComponent(enhancedPrompt);
-    const aiSceneryUrl = `https://image.pollinations.ai/p/${cleanPromptInput}?width=1024&height=1024&nologo=true&enhance=true`;
+    // Extracts clean descriptive keywords to pull an instant HD photo background matching the card's theme
+    const searchKeywords = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").trim().split(" ").slice(0, 3).join(",");
+    const aiSceneryUrl = `https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=1024&h=1024&q=80&sig=${encodeURIComponent(searchKeywords)}`;
 
     // ==========================================
     // 3. COMPILE HYBRID ARTWORK OVERLAY (SVG)
@@ -98,18 +95,18 @@ export default async function handler(req, res) {
     const hybridSvgDocument = `<svg xmlns="${svgURI}" viewBox="0 0 800 800" width="100%" height="100%">
       <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
       
-      <rect width="800" height="800" fill="#000000" fill-opacity="0.3" />
+      <rect width="800" height="800" fill="#000000" fill-opacity="0.35" />
       <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="5" stroke-opacity="0.3" />
 
       <g transform="translate(400, 140)">
-        <rect x="-90" y="-22" width="180" height="44" rx="22" fill="#ffffff" fill-opacity="0.15" />
+        <rect x="-90" y="-22" width="180" height="44" rx="22" fill="#ffffff" fill-opacity="0.2" />
         <text text-anchor="middle" y="6" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="16" fill="#ffffff" letter-spacing="4">CELEBRATION</text>
       </g>
       
       <foreignObject x="80" y="210" width="640" height="380">
         <div xmlns="${xhtmlURI}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 20px;">
-          <div style="background-color: rgba(0, 0, 0, 0.35); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(255, 255, 255, 0.2); padding: 35px 25px; border-radius: 16px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
-            <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 32px; font-weight: 900; margin: 0; padding: 0; line-height: 1.4; letter-spacing: 0.5px; text-shadow: 0 2px 10px rgba(0,0,0,0.6); text-align: center; word-wrap: break-word; max-width: 100%;">
+          <div style="background-color: rgba(0, 0, 0, 0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); border: 1px solid rgba(255, 255, 255, 0.2); padding: 35px 25px; border-radius: 16px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.35);">
+            <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 30px; font-weight: 900; margin: 0; padding: 0; line-height: 1.4; letter-spacing: 0.5px; text-shadow: 0 2px 10px rgba(0,0,0,0.6); text-align: center; word-wrap: break-word; max-width: 100%;">
               ${sanitizedTitle}
             </h1>
           </div>
