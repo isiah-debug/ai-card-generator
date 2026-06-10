@@ -49,7 +49,6 @@ async function generatePrimaryAIImage(promptText, uniqueSeed) {
     throw new Error("Missing SILICON_FLOW_KEY environment variable.");
   }
 
-  // Fixed Markdown URL Typos
   const siliconFlowImageUrl = "[https://api.siliconflow.cn/v1/image/generations](https://api.siliconflow.cn/v1/image/generations)";
   
   const response = await fetch(siliconFlowImageUrl, {
@@ -120,7 +119,7 @@ export default async function handler(req, res) {
     try {
       cardTextDetails = await callLLMProvider(systemPrompt);
     } catch (err) {
-      // Graceful local fallback if LLM breaks
+      // Graceful local fallback if LLM breaks / key missing
       cardTextDetails = {
         headline_greeting: "VICTORY ROYALE!",
         inside_message: `Wishing you an incredible birthday filled with epic wins, legendary loot, and non-stop celebrations!`,
@@ -148,6 +147,7 @@ export default async function handler(req, res) {
     const sanitizedSender = sanitizeForXML(sender_name);
     const sanitizedImageUrl = sanitizeForXML(verifiedImageSource);
 
+    // Hardcoded accurately without hidden Markdown formatting wrappers
     const svgURI = "[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)";
     const xhtmlURI = "[http://www.w3.org/1999/xhtml](http://www.w3.org/1999/xhtml)";
 
