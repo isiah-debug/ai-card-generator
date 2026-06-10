@@ -98,7 +98,6 @@ export default async function handler(req, res) {
         throw new Error("No image data returned from SiliconFlow");
       }
     } catch (imgErr) {
-      // If credits are 0 or rate limited, fallback safely to the vector canvas layout
       useImageBackground = false;
     }
 
@@ -117,9 +116,9 @@ export default async function handler(req, res) {
     const sanitizedTitle = sanitizeForXML(user_prompt).toUpperCase();
     const sanitizedImageUrl = useImageBackground ? sanitizeForXML(aiSceneryUrl) : "";
 
-    // Pristine, explicit namespace URI strings
-    const svgURI = "[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)";
-    const xhtmlURI = "[http://www.w3.org/1999/xhtml](http://www.w3.org/1999/xhtml)";
+    // Obfuscate URIs using character codes to prevent any markdown link manipulation
+    const svgURI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,50,48,48,48,47,115,118,103);
+    const xhtmlURI = String.fromCharCode(104,116,116,112,58,47,47,119,119,119,46,119,51,46,111,114,103,47,49,57,57,57,47,120,104,116,109,108);
 
     const hybridSvgDocument = `<svg xmlns="${svgURI}" viewBox="0 0 800 800" width="100%" height="100%">
       <defs>
@@ -134,7 +133,7 @@ export default async function handler(req, res) {
         : `<rect width="800" height="800" fill="url(#fallbackGrad)" />`
       }
       
-      <rect width="800" height="800" fill="#000000" fill-opacity="${useImageBackground ? "0.45" : "0.0"}" />
+      <rect width="800" height="800" fill="#000000" fill-opacity="${useImageBackground ? "0.45" : "0.1"}" />
       <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="5" stroke-opacity="0.25" />
       
       ${!useImageBackground ? `
@@ -148,10 +147,12 @@ export default async function handler(req, res) {
       </g>
       
       <foreignObject x="80" y="210" width="640" height="380">
-        <div xmlns="${xhtmlURI}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-family: system-ui, -apple-system, sans-serif; text-align: center; box-sizing: border-box;">
-          <h1 style="color: #ffffff; font-size: 36px; font-weight: 900; margin: 0; padding: 0; line-height: 1.4; letter-spacing: 1px; text-shadow: 0 4px 14px rgba(0,0,0,0.3); max-width: 100%; word-wrap: break-word;">
-            ${sanitizedTitle}
-          </h1>
+        <div xmlns="${xhtmlURI}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 20px;">
+          <div style="background-color: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.25); padding: 35px 25px; border-radius: 16px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.15);">
+            <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 32px; font-weight: 900; margin: 0; padding: 0; line-height: 1.4; letter-spacing: 0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.25); text-align: center; word-wrap: break-word; max-width: 100%;">
+              ${sanitizedTitle}
+            </h1>
+          </div>
         </div>
       </foreignObject>
       
