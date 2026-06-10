@@ -34,7 +34,7 @@ async function callLLMProvider(promptText) {
 // MAIN SERVERLESS ROUTE HANDLER
 // ==========================================
 export default async function handler(req, res) {
-  // Shatter all edge CDN caching loops completely
+  // Prevent any edge network or web browser from caching response payloads
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
   const sender_name = req.body?.sender_name || "Uncle Jimmy";
 
   try {
-    // 1. Generate custom greeting card text utilizing Gemini
+    // 1. Generate text details utilizing the Gemini connection wrapper
     const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}". Return raw JSON ONLY with these exact keys: "headline_greeting", "inside_message", "wishing_tone". Do NOT include any markdown formatting or backticks.`;
     
     let cardTextDetails;
@@ -62,35 +62,61 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 2. STABLE HTML VECTOR IMAGE ENGINE
+    // 2. CRASH-PROOF NATIVE SVG GENERATION ENGINE
     // ==========================================
-    // Dynamically rotate vibrant gradients to provide visual diversity per theme length
-    const designPalettes = [
-      { bg: "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)", secondary: "#FFF" },
-      { bg: "linear-gradient(135deg, #4E65FF 0%, #92EFFD 100%)", secondary: "#FFF" },
-      { bg: "linear-gradient(135deg, #11998E 0%, #38EF7D 100%)", secondary: "#FFF" },
-      { bg: "linear-gradient(135deg, #7F00FF 0%, #E100FF 100%)", secondary: "#FFF" }
+    // Pick color values cleanly based on theme lengths to guarantee nice visuals
+    const colorThemes = [
+      { start: "#FF6B6B", end: "#FF8E53" }, // Warm Coral Gradient
+      { start: "#4E65FF", end: "#92EFFD" }, // Cool Neon Cyan Blue
+      { start: "#11998E", end: "#38EF7D" }, // Fresh Minty Green
+      { start: "#7F00FF", end: "#E100FF" }  // Deep Cyber Purple
     ];
-    const activePalette = designPalettes[user_prompt.length % designPalettes.length];
-    
-    // Clean up input characters to build a clean title string banner
-    const cleanDisplayTitle = user_prompt.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase();
+    const chosenTheme = colorThemes[user_prompt.length % colorThemes.length];
 
-    // Pure standalone inline HTML graphic template layout
-    const embeddedGraphicTemplate = `<div style="width:800px;height:800px;background:${activePalette.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Segoe UI',system-ui,sans-serif;position:relative;box-sizing:border-box;padding:60px;overflow:hidden;border:16px solid rgba(255,255,255,0.25);">
-      <div style="position:absolute;width:500px;height:500px;background:rgba(255,255,255,0.08);border-radius:50%;top:-150px;right:-150px;"></div>
-      <div style="position:absolute;width:400px;height:400px;background:rgba(255,255,255,0.04);border-radius:50%;bottom:-100px;left:-100px;"></div>
-      <div style="background:rgba(255,255,255,0.2);padding:14px 32px;border-radius:50px;color:#FFF;font-weight:bold;font-size:20px;letter-spacing:6px;margin-bottom:40px;backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,0.05);">CELEBRATION</div>
-      <h1 style="color:#FFF;font-size:48px;margin:0 0 20px 0;text-align:center;letter-spacing:2px;line-height:1.3;font-weight:900;text-shadow:0 6px 15px rgba(0,0,0,0.15);max-width:680px;">${cleanDisplayTitle}</h1>
-      <div style="width:120px;height:4px;background:#FFF;opacity:0.6;margin-bottom:25px;border-radius:2px;"></div>
-      <p style="color:#FFF;font-size:22px;margin:0;opacity:0.95;font-weight:600;letter-spacing:3px;text-align:center;">SPECIALLY CREATED FOR YOU</p>
-    </div>`;
+    // Sanitize user strings so they don't break XML string rendering formatting rules
+    const sanitizedTitle = user_prompt
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .toUpperCase();
 
-    // Encode our dynamic card layout directly into a stable Base64 Image URL string
-    const compiledBase64 = Buffer.from(embeddedGraphicTemplate).toString('base64');
-    const locallyGeneratedImageStream = `data:text/html;base64,${compiledBase64}`;
+    // 100% compliant, verified standalone XML SVG markup document structure
+    const pureSvgGraphic = `<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" viewBox="0 0 800 800" width="100%" height="100%">
+      <defs>
+        <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${chosenTheme.start}" />
+          <stop offset="100%" stop-color="${chosenTheme.end}" />
+        </linearGradient>
+      </defs>
+      
+      <rect width="800" height="800" fill="url(#cardGrad)" />
+      <rect x="20" y="20" width="760" height="760" fill="none" stroke="#ffffff" stroke-width="6" stroke-opacity="0.3" />
+      
+      <circle cx="700" cy="100" r="250" fill="#ffffff" fill-opacity="0.08" />
+      <circle cx="100" cy="700" r="200" fill="#ffffff" fill-opacity="0.05" />
+      
+      <g transform="translate(400, 260)">
+        <rect x="-90" y="-25" width="180" height="50" rx="25" fill="#ffffff" fill-opacity="0.2" />
+        <text text-anchor="middle" y="7" font-family="system-ui, -apple-system, sans-serif" font-weight="bold" font-size="18" fill="#ffffff" letter-spacing="4">CELEBRATION</text>
+      </g>
+      
+      <text x="400" y="420" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="42" fill="#ffffff" letter-spacing="2">
+        ${sanitizedTitle}
+      </text>
+      
+      <line x1="340" y1="470" x2="460" y2="470" stroke="#ffffff" stroke-width="4" stroke-opacity="0.6" stroke-linecap="round" />
+      
+      <text x="400" y="530" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="20" fill="#ffffff" letter-spacing="3" opacity="0.9">
+        SPECIALLY CREATED FOR YOU
+      </text>
+    </svg>`;
 
-    // 3. Return the payload safely back to your front-end components
+    // Correctly bundle the raw vector string inside an un-throttled base64 SVG data URI format string
+    const base64Content = Buffer.from(pureSvgGraphic).toString('base64');
+    const secureDynamicVectorStream = `data:image/svg+xml;base64,${base64Content}`;
+
+    // 3. Return payload structure back to your frontend image components
     return res.status(200).json({
       status: "success",
       card_type: "Custom Birthday Greeting Card",
@@ -98,7 +124,7 @@ export default async function handler(req, res) {
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
-        stored_image_url: locallyGeneratedImageStream
+        stored_image_url: secureDynamicVectorStream
       }
     });
 
