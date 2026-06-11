@@ -1,33 +1,35 @@
-# AI Birthday Card Generator
+# AI Birthday Card Generator 
 
-A simple backend API that generates custom, theme-based birthday cards.
-It automatically creates unique message text and an AI-generated background image, then packages them together into a beautiful card layout.
 
 ## How It Works
 
-1. **Your Input:** The API takes a `user_prompt` (the theme of the card) and a `sender_name`.
-2. **AI Text:** It uses SiliconFlow AI to write a unique headline and inside message matching your theme.
-3. **AI Image:** It uses the FLUX model to generate a custom 1024x1024 background illustration.
-4. **Final Card:** It combines the text and image into an SVG card design and encodes it as a Base64 string for easy display.
+1. **Frontend Integration:** The API extracts exact form matching variables: `occasion`, `recipient`, `tone`, and `message`.
+2. **Input Validation:** The backend strictly verifies that an `occasion` and a `recipient` are present. If missing, it safely blocks execution with a clear error structure.
+3. **AI Text Phrase:** It uses SiliconFlow AI to formulate an ultra-short 2-4 word greeting title based on your chosen theme.
+4. **Textless AI Image Layer:** It dispatches an aggressive anti-typography prompt matrix to the FLUX model, ensuring the generated image backdrop is completely free of messy, duplicated AI letters.
+5. **Clean SVG Assembly:** It compiles a clean, transparent SVG layout that elevates your custom dynamic headline high up (`translate y=180`) and keeps the rest of the canvas open.
 
 ## Environment Setup
 
-To run this project, you must add the following environment variable to your Vercel project settings:
+Ensure the following secret variable is active inside your Vercel Project Dashboard:
 
 * **Key:** `SILICON_FLOW_KEY`
-* **Value:** Your active SiliconFlow API Key (`sk_...`)
+* **Value:** Your private account token string (`sk_...`)
 
-### Endpoint URL
+### Endpoint Routing
 `POST /api/generate-card`
 
-### Request Header
+### Request Headers
 `Content-Type: application/json`
 
-### Test Parameters (Paste into ReqBin Content tab)
+### Production Testing Parameters (Paste into ReqBin Content panel)
 
-#### Option A: Minecraft Skyblock Theme
+Use this updated JSON payload structure matching your new form layout schema:
+
 ```json
 {
-  "user_prompt": "Minecraft skyblock island adventure",
-  "sender_name": "Sarah"
+  "occasion": "Birthday",
+  "recipient": "Isaiah",
+  "tone": "excited, blocky skyblock gaming style",
+  "message": "This user text block is retained safely inside the API data payload for the client-side templates!"
 }
