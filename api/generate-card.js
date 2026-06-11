@@ -3,8 +3,8 @@
 // =========================================================================
 const SILICON_FLOW_KEY = process.env.SILICON_FLOW_KEY;
 
-const TEXT_API_URL = "https://api.siliconflow.cn/v1/chat/completions";
-const IMAGE_API_URL = "https://api.siliconflow.cn/v1/images/generations";
+const TEXT_API_URL = "https://api.siliconflow.com/v1/chat/completions";
+const IMAGE_API_URL = "https://api.siliconflow.com/v1/images/generations";
 
 const SVG_XMLNS_URI = "http://www.w3.org/2000/svg";
 const XHTML_XMLNS_URI = "http://www.w3.org/1999/xhtml";
