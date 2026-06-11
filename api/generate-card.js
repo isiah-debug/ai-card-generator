@@ -7,7 +7,6 @@ const TEXT_API_URL = "https://api.siliconflow.com/v1/chat/completions";
 const IMAGE_API_URL = "https://api.siliconflow.com/v1/images/generations";
 
 const SVG_XMLNS_URI = "http://www.w3.org/2000/svg";
-const XHTML_XMLNS_URI = "http://www.w3.org/1999/xhtml";
 
 function getRequestBody(req) {
   if (!req.body) return {};
@@ -83,8 +82,7 @@ async function generatePrimaryAIImageBase64(occasion, tone, uniqueSeed) {
     cleanKey = cleanKey.slice(7).trim();
   }
 
-  // Uses occasion and tone properties to construct a customized thematic asset backdrop
-  const optimizedPrompt = `Artistic background illustration for a celebration card, theme context: ${occasion}, stylistic aesthetic vibe: ${tone}, cinematic lighting, flat vector layout design elements, no text, masterpiece painting`;
+  const optimizedPrompt = `Artistic background illustration for a celebration card canvas, theme context: ${occasion}, stylistic aesthetic vibe: ${tone}, cinematic lighting, flat vector layout design elements, no text, masterpiece painting`;
 
   const response = await fetch(IMAGE_API_URL, {
     method: 'POST',
@@ -144,10 +142,10 @@ export default async function handler(req, res) {
 
   const body = getRequestBody(req);
   
-  // EXTRACTION & REQUIREMENT 1: Dynamic mapping to new frontend fields
+  // Requirement 1: Match the new frontend field schema
   const { occasion, recipient, tone, message } = body;
 
-  // REQUIREMENT 2: Basic Input Validation Layer
+  // Requirement 2: Mandatory input fields validation layer
   if (!occasion || !recipient) {
     return res.status(400).json({
       status: "error",
@@ -156,7 +154,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // REQUIREMENT 3: Instructs LLM to formulate short expressions instead of full paragraphs
+    // Requirement 3: Request ONLY an ultra-short, basic milestone greeting title string
     const systemPrompt = `Create an ultra-short, punchy greeting title text block for a greeting card design based on the celebration occasion: "${occasion}" and tone: "${tone}".
     Return a clean JSON object structure with this exact key:
     "headline_greeting": "A short basic 2-4 word milestone title phrase (e.g. HAPPY BIRTHDAY, CONGRATULATIONS CHAMP! etc.)"`;
@@ -187,30 +185,27 @@ export default async function handler(req, res) {
     const sanitizedRecipient = sanitizeForXML(recipient).toUpperCase();
     const sanitizedImageUrl = sanitizeForXML(finalInlineImageSource);
 
-    // Dynamic clean SVG structure omitting paragraph card frames
+    // Dynamic, minimal SVG structure without any card screens covering up the background artwork
     const hybridSvgDocument = `<svg xmlns="${SVG_XMLNS_URI}" viewBox="0 0 800 800" width="100%" height="100%">
+      <defs>
+        <filter id="drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.8"/>
+        </filter>
+      </defs>
+
       <rect width="800" height="800" fill="#151c2c" />
       <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
       
-      <rect width="800" height="800" fill="#0b0f19" fill-opacity="0.4" />
-      <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="5" stroke-opacity="0.2" />
+      <rect width="800" height="800" fill="none" stroke="#0b0f19" stroke-width="40" stroke-opacity="0.15" />
+      <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="2" stroke-opacity="0.25" />
 
-      <g transform="translate(400, 260)">
-        <rect x="-90" y="-22" width="180" height="44" rx="22" fill="#ffffff" fill-opacity="0.15" />
-        <text text-anchor="middle" y="6" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="15" fill="#ffffff" letter-spacing="4">CELEBRATION</text>
+      <g transform="translate(400, 400)" filter="url(#drop-shadow)">
+        <text text-anchor="middle" y="-10" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="44" fill="#ffffff" letter-spacing="1" text-transform="uppercase">${sanitizedHeadline}</text>
+        <line x1="-50" y1="15" x2="50" y2="15" stroke="#38bdf8" stroke-width="4" stroke-linecap="round" />
+        <text text-anchor="middle" y="55" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="20" fill="#38bdf8" letter-spacing="4" text-transform="uppercase">${sanitizedRecipient}</text>
       </g>
       
-      <foreignObject x="80" y="320" width="640" height="300">
-        <div xmlns="${XHTML_XMLNS_URI}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 10px;">
-          <div style="background-color: rgba(11, 15, 25, 0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.2); padding: 35px 30px; border-radius: 20px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.6); text-align: center;">
-            <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 32px; font-weight: 900; margin: 0 0 12px 0; line-height: 1.2; letter-spacing: 1px; text-shadow: 0 2px 8px rgba(0,0,0,0.8);">${sanitizedHeadline}</h1>
-            <div style="width: 60px; height: 3px; background-color: #38bdf8; margin: 0 auto 15px auto; border-radius: 2px;"></div>
-            <p style="color: #38bdf8; font-family: system-ui, -apple-system, sans-serif; font-size: 18px; font-weight: 800; letter-spacing: 2px; margin: 0; text-transform: uppercase;">FOR: ${sanitizedRecipient}</p>
-          </div>
-        </div>
-      </foreignObject>
-      
-      <text x="400" y="720" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="16" fill="#ffffff" letter-spacing="3" opacity="0.7">SPECIALLY CREATED FOR YOU</text>
+      <text x="400" y="730" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="14" fill="#ffffff" letter-spacing="3" opacity="0.6" filter="url(#drop-shadow)">SPECIALLY CREATED FOR YOU</text>
     </svg>`.trim();
 
     const base64Content = Buffer.from(hybridSvgDocument).toString('base64');
@@ -221,7 +216,7 @@ export default async function handler(req, res) {
       card_type: "Custom Simplified Greeting Card",
       recipient: recipient,
       tone_context: tone || "default",
-      user_message_retained: message || "",
+      user_message_retained: message || "", // Passed back unsanitized for frontend rendering pipelines
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
