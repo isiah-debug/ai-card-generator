@@ -142,10 +142,9 @@ export default async function handler(req, res) {
 
   const body = getRequestBody(req);
   
-  // Requirement 1: Match the new frontend field schema
   const { occasion, recipient, tone, message } = body;
 
-  // Requirement 2: Mandatory input fields validation layer
+  // Mandatory input validation layer
   if (!occasion || !recipient) {
     return res.status(400).json({
       status: "error",
@@ -154,10 +153,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Requirement 3: Request ONLY an ultra-short, basic milestone greeting title string
-    const systemPrompt = `Create an ultra-short, punchy greeting title text block for a greeting card design based on the celebration occasion: "${occasion}" and tone: "${tone}".
+    // Request an ultra-short phrase matching the milestone occasion
+    const systemPrompt = `Create an ultra-short, punchy greeting title phrase for a card design based on the celebration occasion: "${occasion}" and tone: "${tone}".
     Return a clean JSON object structure with this exact key:
-    "headline_greeting": "A short basic 2-4 word milestone title phrase (e.g. HAPPY BIRTHDAY, CONGRATULATIONS CHAMP! etc.)"`;
+    "headline_greeting": "A short basic 2-3 word milestone title phrase (e.g. HAPPY BIRTHDAY, CONGRATULATIONS CHAMP! etc.)"`;
     
     let cardTextDetails;
     try {
@@ -182,10 +181,9 @@ export default async function handler(req, res) {
     }
 
     const sanitizedHeadline = sanitizeForXML(cardTextDetails.headline_greeting).toUpperCase();
-    const sanitizedRecipient = sanitizeForXML(recipient).toUpperCase();
     const sanitizedImageUrl = sanitizeForXML(finalInlineImageSource);
 
-    // Dynamic, minimal SVG structure without any card screens covering up the background artwork
+    // Completely clean layout: Recipient and footer text removed, occasion title pushed high up (translate y=180)
     const hybridSvgDocument = `<svg xmlns="${SVG_XMLNS_URI}" viewBox="0 0 800 800" width="100%" height="100%">
       <defs>
         <filter id="drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -199,13 +197,10 @@ export default async function handler(req, res) {
       <rect width="800" height="800" fill="none" stroke="#0b0f19" stroke-width="40" stroke-opacity="0.15" />
       <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="2" stroke-opacity="0.25" />
 
-      <g transform="translate(400, 400)" filter="url(#drop-shadow)">
-        <text text-anchor="middle" y="-10" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="44" fill="#ffffff" letter-spacing="1" text-transform="uppercase">${sanitizedHeadline}</text>
-        <line x1="-50" y1="15" x2="50" y2="15" stroke="#38bdf8" stroke-width="4" stroke-linecap="round" />
-        <text text-anchor="middle" y="55" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="20" fill="#38bdf8" letter-spacing="4" text-transform="uppercase">${sanitizedRecipient}</text>
+      <g transform="translate(400, 180)" filter="url(#drop-shadow)">
+        <text text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="46" fill="#ffffff" letter-spacing="2" text-transform="uppercase">${sanitizedHeadline}</text>
+        <line x1="-60" y1="20" x2="60" y2="20" stroke="#38bdf8" stroke-width="5" stroke-linecap="round" />
       </g>
-      
-      <text x="400" y="730" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="14" fill="#ffffff" letter-spacing="3" opacity="0.6" filter="url(#drop-shadow)">SPECIALLY CREATED FOR YOU</text>
     </svg>`.trim();
 
     const base64Content = Buffer.from(hybridSvgDocument).toString('base64');
@@ -216,7 +211,7 @@ export default async function handler(req, res) {
       card_type: "Custom Simplified Greeting Card",
       recipient: recipient,
       tone_context: tone || "default",
-      user_message_retained: message || "", // Passed back unsanitized for frontend rendering pipelines
+      user_message_retained: message || "", 
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
