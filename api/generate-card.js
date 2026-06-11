@@ -82,7 +82,8 @@ async function generatePrimaryAIImageBase64(occasion, tone, uniqueSeed) {
     cleanKey = cleanKey.slice(7).trim();
   }
 
-  const optimizedPrompt = `Artistic background illustration for a celebration card canvas, theme context: ${occasion}, stylistic aesthetic vibe: ${tone}, cinematic lighting, flat vector layout design elements, no text, masterpiece painting`;
+  // AGGRESSIVE NEGATIVE PROMPTS: Forbids FLUX from trying to bake messy AI text elements into your background canvas pattern
+  const optimizedPrompt = `A completely blank, textless background illustration pattern for a card wallpaper canvas. Theme: ${occasion}. Style: ${tone}. High-quality flat vector design aesthetic, artistic scenery landscape, cinematic lighting. Strictly NO text, NO words, NO letters, NO typography written on the image, blank space, masterpiece painting`;
 
   const response = await fetch(IMAGE_API_URL, {
     method: 'POST',
@@ -183,7 +184,7 @@ export default async function handler(req, res) {
     const sanitizedHeadline = sanitizeForXML(cardTextDetails.headline_greeting).toUpperCase();
     const sanitizedImageUrl = sanitizeForXML(finalInlineImageSource);
 
-    // Completely clean layout: Recipient and footer text removed, occasion title pushed high up (translate y=180)
+    // Dynamic, transparent layout structure keeping text elevated high at y=180
     const hybridSvgDocument = `<svg xmlns="${SVG_XMLNS_URI}" viewBox="0 0 800 800" width="100%" height="100%">
       <defs>
         <filter id="drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
