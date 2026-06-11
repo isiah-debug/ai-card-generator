@@ -41,8 +41,8 @@ function cleanAndParseJSON(rawString) {
 // 2. TEXT COGNITION LAYER (NEX-N2-PRO)
 // =========================================================================
 async function callLLMProvider(promptText) {
-  if (!SILICON_FLOW_KEY || !SILICON_FLOW_KEY.startsWith("sk-")) {
-    throw new Error("Missing or invalid SILICON_FLOW_KEY configuration variable layout.");
+  if (!SILICON_FLOW_KEY) {
+    throw new Error("Missing SILICON_FLOW_KEY configuration variable layout.");
   }
 
   const response = await fetch(TEXT_API_URL, {
@@ -73,18 +73,18 @@ async function callLLMProvider(promptText) {
 // =========================================================================
 // 3. IMAGE GENERATION (DYNAMIC PIPELINE WITH FLUX)
 // =========================================================================
-async function generatePrimaryAIImageBase64(promptText, uniqueSeed) {
+async function generatePrimaryAIImageBase64(occasion, tone, uniqueSeed) {
   if (!SILICON_FLOW_KEY) {
     throw new Error("Invalid key format structure configuration layout.");
   }
 
-  // CLEANING STEP: Automatically fixes prefix typos or double "Bearer" issues
   let cleanKey = SILICON_FLOW_KEY.trim();
   if (cleanKey.toLowerCase().startsWith("bearer ")) {
     cleanKey = cleanKey.slice(7).trim();
   }
 
-  const optimizedPrompt = `${promptText.trim()}, retro cubic block landscape voxel artwork, pixel art style, blue sky, cinematic lighting, no text, masterpiece painting`;
+  // Uses occasion and tone properties to construct a customized thematic asset backdrop
+  const optimizedPrompt = `Artistic background illustration for a celebration card, theme context: ${occasion}, stylistic aesthetic vibe: ${tone}, cinematic lighting, flat vector layout design elements, no text, masterpiece painting`;
 
   const response = await fetch(IMAGE_API_URL, {
     method: 'POST',
@@ -100,6 +100,7 @@ async function generatePrimaryAIImageBase64(promptText, uniqueSeed) {
       num_inference_steps: 4
     })
   });
+
   if (!response.ok) {
     const errText = await response.text();
     throw new Error(`[SiliconFlow Server Error]: ${response.status} - ${errText}`);
@@ -119,14 +120,13 @@ async function generatePrimaryAIImageBase64(promptText, uniqueSeed) {
   return piece;
 }
 
-// Fallback vector graphic
 function generateSafeLocalFallbackBackground() {
-  const rawVectorSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="#5cafff" /><rect x="550" y="80" width="90" height="90" fill="#fffebd" /><rect x="540" y="70" width="110" height="110" fill="#ffffd6" fill-opacity="0.3" /><g fill="#ffffff" fill-opacity="0.85"><rect x="60" y="120" width="220" height="40" /><rect x="100" y="100" width="140" height="20" /><rect x="420" y="160" width="180" height="30" /></g><g fill="#2b593f"><rect x="0" y="380" width="200" height="420" /><rect x="150" y="340" width="160" height="460" /><rect x="280" y="400" width="120" height="400" /><rect x="360" y="320" width="220" height="480" /><rect x="540" y="360" width="260" height="440" /></g><g fill="#4a852c"><rect x="0" y="460" width="800" height="340" /></g><g fill="#376620"><rect x="80" y="460" width="60" height="40" /><rect x="240" y="460" width="80" height="30" /><rect x="480" y="460" width="100" height="50" /><rect x="680" y="460" width="70" height="40" /></g><g fill="#40542a"><rect x="100" y="500" width="600" height="240" /><rect x="140" y="480" width="520" height="20" /></g><g fill="#1d61a1" fill-opacity="0.9"><rect x="120" y="510" width="560" height="210" /><rect x="150" y="490" width="500" height="20" /></g><g fill="#3782c9" fill-opacity="0.6"><rect x="180" y="530" width="80" height="20" /><rect x="440" y="520" width="120" height="20" /><rect x="260" y="600" width="140" height="30" /><rect x="480" y="640" width="90" height="20" /><rect x="160" y="660" width="110" height="25" /></g><rect width="800" height="800" fill="none" stroke="rgba(0,0,0,0.15)" stroke-width="20" /></svg>`;
+  const rawVectorSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="#1e293b" /><circle cx="400" cy="400" r="300" fill="#38bdf8" fill-opacity="0.1" /><rect width="800" height="800" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="20" /></svg>`;
   return `data:image/svg+xml;base64,${Buffer.from(rawVectorSvg.trim()).toString('base64')}`;
 }
 
 // =========================================================================
-// MAIN SERVERLESS ENDPOINT ROUTE (DIAGNOSTIC MODE)
+// MAIN SERVERLESS ENDPOINT ROUTE
 // =========================================================================
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -143,25 +143,33 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const body = getRequestBody(req);
-  const user_prompt = body.user_prompt || "Minecraft skyblock island adventure";
-  const sender_name = body.sender_name || "Sarah";
+  
+  // EXTRACTION & REQUIREMENT 1: Dynamic mapping to new frontend fields
+  const { occasion, recipient, tone, message } = body;
+
+  // REQUIREMENT 2: Basic Input Validation Layer
+  if (!occasion || !recipient) {
+    return res.status(400).json({
+      status: "error",
+      message: "Validation Error: 'occasion' and 'recipient' parameters are required data fields."
+    });
+  }
 
   try {
-    const systemPrompt = `Create custom birthday card text based on the theme: "${user_prompt}".
-    Return a clean JSON object code structure with these exact keys:
-    "headline_greeting": "A short, exciting greeting matching the theme context.",
-    "inside_message": "A creative, warm 1-2 sentence birthday message customized to the theme."`;
+    // REQUIREMENT 3: Instructs LLM to formulate short expressions instead of full paragraphs
+    const systemPrompt = `Create an ultra-short, punchy greeting title text block for a greeting card design based on the celebration occasion: "${occasion}" and tone: "${tone}".
+    Return a clean JSON object structure with this exact key:
+    "headline_greeting": "A short basic 2-4 word milestone title phrase (e.g. HAPPY BIRTHDAY, CONGRATULATIONS CHAMP! etc.)"`;
     
     let cardTextDetails;
     try {
       cardTextDetails = await callLLMProvider(systemPrompt);
-      if (!cardTextDetails.headline_greeting || !cardTextDetails.inside_message) {
+      if (!cardTextDetails.headline_greeting) {
         throw new Error("Key fields parsed out empty.");
       }
     } catch (err) {
       cardTextDetails = {
-        headline_greeting: "BLOCK-TASTIC DAY!",
-        inside_message: `Wishing you an awesome adventure on your birthday! May your day be filled with rare discoveries, grand creations, and endless exploration across your world!`
+        headline_greeting: `${occasion.toUpperCase()}!`
       };
     }
 
@@ -169,48 +177,40 @@ export default async function handler(req, res) {
 
     let finalInlineImageSource;
     try {
-      finalInlineImageSource = await generatePrimaryAIImageBase64(user_prompt, uniqueSeed);
+      finalInlineImageSource = await generatePrimaryAIImageBase64(occasion, tone || "festive", uniqueSeed);
     } catch (primaryErr) {
-      // STOP HIDING THE ERROR: This sends the real reason straight back to ReqBin!
-      return res.status(500).json({
-        status: "error",
-        error_phase: "SiliconFlow Image Generation Pipeline",
-        message: primaryErr.message,
-        suggestion: "Check your SiliconFlow console for billing issues, model configurations, or token limits."
-      });
+      console.error("=== IMAGE PIPELINE FAILURE ===", primaryErr.message);
+      finalInlineImageSource = generateSafeLocalFallbackBackground();
     }
 
-    // Forces sender name to uppercase capitals automatically
     const sanitizedHeadline = sanitizeForXML(cardTextDetails.headline_greeting).toUpperCase();
-    const sanitizedBodyMessage = sanitizeForXML(cardTextDetails.inside_message);
-    const sanitizedSender = sanitizeForXML(sender_name).toUpperCase(); 
+    const sanitizedRecipient = sanitizeForXML(recipient).toUpperCase();
     const sanitizedImageUrl = sanitizeForXML(finalInlineImageSource);
 
+    // Dynamic clean SVG structure omitting paragraph card frames
     const hybridSvgDocument = `<svg xmlns="${SVG_XMLNS_URI}" viewBox="0 0 800 800" width="100%" height="100%">
       <rect width="800" height="800" fill="#151c2c" />
       <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
       
-      <rect width="800" height="800" fill="#0b0f19" fill-opacity="0.3" />
+      <rect width="800" height="800" fill="#0b0f19" fill-opacity="0.4" />
       <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="5" stroke-opacity="0.2" />
 
-      <g transform="translate(400, 110)">
+      <g transform="translate(400, 260)">
         <rect x="-90" y="-22" width="180" height="44" rx="22" fill="#ffffff" fill-opacity="0.15" />
         <text text-anchor="middle" y="6" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="15" fill="#ffffff" letter-spacing="4">CELEBRATION</text>
       </g>
       
-      <foreignObject x="80" y="170" width="640" height="440">
+      <foreignObject x="80" y="320" width="640" height="300">
         <div xmlns="${XHTML_XMLNS_URI}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 10px;">
-          <div style="background-color: rgba(11, 15, 25, 0.75); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.2); padding: 40px 30px; border-radius: 20px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.6); text-align: center;">
-            <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 28px; font-weight: 900; margin: 0 0 18px 0; line-height: 1.3; letter-spacing: 0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.8); word-wrap: break-word;">${sanitizedHeadline}</h1>
-            <div style="width: 50px; height: 3px; background-color: #38bdf8; margin: 0 auto 20px auto; border-radius: 2px;"></div>
-            <p style="color: rgba(255, 255, 255, 0.95); font-family: system-ui, -apple-system, sans-serif; font-size: 18px; font-weight: 500; line-height: 1.6; margin: 0 0 25px 0; text-shadow: 0 1px 4px rgba(0,0,0,0.5); word-wrap: break-word;">${sanitizedBodyMessage}</p>
-            <p style="color: #38bdf8; font-family: system-ui, -apple-system, sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 1px; margin: 0; text-transform: uppercase;">With Love, ${sanitizedSender}</p>
+          <div style="background-color: rgba(11, 15, 25, 0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.2); padding: 35px 30px; border-radius: 20px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.6); text-align: center;">
+            <h1 style="color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 32px; font-weight: 900; margin: 0 0 12px 0; line-height: 1.2; letter-spacing: 1px; text-shadow: 0 2px 8px rgba(0,0,0,0.8);">${sanitizedHeadline}</h1>
+            <div style="width: 60px; height: 3px; background-color: #38bdf8; margin: 0 auto 15px auto; border-radius: 2px;"></div>
+            <p style="color: #38bdf8; font-family: system-ui, -apple-system, sans-serif; font-size: 18px; font-weight: 800; letter-spacing: 2px; margin: 0; text-transform: uppercase;">FOR: ${sanitizedRecipient}</p>
           </div>
         </div>
       </foreignObject>
       
-      <line x1="330" y1="650" x2="470" y2="650" stroke="#ffffff" stroke-width="4" stroke-opacity="0.3" stroke-linecap="round" />
-      <text x="400" y="700" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="18" fill="#ffffff" letter-spacing="3" opacity="1">SPECIALLY CREATED FOR YOU</text>
+      <text x="400" y="720" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="16" fill="#ffffff" letter-spacing="3" opacity="0.7">SPECIALLY CREATED FOR YOU</text>
     </svg>`.trim();
 
     const base64Content = Buffer.from(hybridSvgDocument).toString('base64');
@@ -218,8 +218,10 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       status: "success",
-      card_type: "Custom Birthday Greeting Card",
-      from: sender_name,
+      card_type: "Custom Simplified Greeting Card",
+      recipient: recipient,
+      tone_context: tone || "default",
+      user_message_retained: message || "",
       card_text: cardTextDetails,
       print_configuration: {
         physical_dimensions: "4x4 inches",
