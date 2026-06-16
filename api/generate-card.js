@@ -8,7 +8,7 @@ const IMAGE_API_URL = "https://api.siliconflow.com/v1/images/generations";
 
 const SVG_XMLNS_URI = "http://www.w3.org/2000/svg";
 
-// Turn off default body parser to let us manually handle incoming chunk data streams
+// Let us manually handle incoming chunk data streams
 export const config = {
   api: {
     bodyParser: false,
@@ -120,46 +120,41 @@ function generateSafeLocalFallbackBackground() {
 // 3. MAIN SERVERLESS ENDPOINT INTERCEPTOR HANDLER
 // =========================================================================
 export default async function handler(req, res) {
-  // CORS Headers granting your Shopify frontend explicit access permission layers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    // 1. Consume payload stream data blocks arriving from Shopify FormData submit
     const chunks = [];
-    for await (const chunk of req) {
-      chunks.push(chunk);
-    }
+    for await (const chunk of req) { chunks.push(chunk); }
     const buffer = Buffer.concat(chunks);
     const rawPayloadString = buffer.toString('utf-8');
 
-    // 2. Extract values cleanly from form structure data fields
+    // 1. Core Text Prompts
     const occasion = extractValueFromMultipart(rawPayloadString, 'occasion') || "Celebration";
     const recipient = extractValueFromMultipart(rawPayloadString, 'recipient') || "Someone Special";
     const tone = extractValueFromMultipart(rawPayloadString, 'tone') || "festive";
     const message = extractValueFromMultipart(rawPayloadString, 'message') || occasion;
-    const userSelectedTheme = extractValueFromMultipart(rawPayloadString, 'userSelectedTheme');
+
+    // 2. NEW: Retrieve Custom Properties directly from your Shopify Dropdowns
+    const chosenFont = extractValueFromMultipart(rawPayloadString, 'font') || "helvetica";
+    const chosenColor = extractValueFromMultipart(rawPayloadString, 'color') || "#000000";
+    const chosenSize = extractValueFromMultipart(rawPayloadString, 'size') || "20px";
 
     console.log("=========================================================");
-    console.log("📥 INBOUND PREVIEW TRANSACTION RECEIVED FROM SHOPIFY:");
-    console.log(` -> Context Occasion:   "${occasion}"`);
-    console.log(` -> Context Recipient:  "${recipient}"`);
-    console.log(` -> Context Message:    "${message}"`);
+    console.log("📥 RECEIVED FORM DROPDOWNS:");
+    console.log(` -> Font family: ${chosenFont} | Color Hex: ${chosenColor} | Font Size: ${chosenSize}`);
     console.log("=========================================================");
 
-    // 3. LLM Pipeline Stage A: Formulate Copywriting Styles and Layout Keys
+    // 3. LLM Pipeline Stage A: Formulate Copywriting Styles
     const copywritingDirectivePrompt = `Analyze this custom card asset parameters:
     Occasion context: "${occasion}", Recipient target: "${recipient}", Desired Tone: "${tone}".
     Select exactly one mapping string: "vibrant_playful", "classic_elegant", "retro_vintage", "modern_minimal".
-    Write a 2-3 word cover headline (e.g. HAPPY BIRTHDAY, YOU DID IT).
+    Write a 2-3 word cover headline greeting (e.g. HAPPY BIRTHDAY, YOU DID IT).
     Return strict clean JSON: {"style_key": "string_here", "headline_greeting": "phrase_here"}`;
 
     let cardTextDetails;
@@ -169,8 +164,7 @@ export default async function handler(req, res) {
       cardTextDetails = { style_key: "modern_minimal", headline_greeting: `${occasion.toUpperCase()}!` };
     }
 
-    const activeRouteKey = userSelectedTheme || cardTextDetails.style_key;
-    const layoutConfig = FRAMING_LAYOUT_ROUTER[activeRouteKey] || FRAMING_LAYOUT_ROUTER.modern_minimal;
+    const layoutConfig = FRAMING_LAYOUT_ROUTER[cardTextDetails.style_key] || FRAMING_LAYOUT_ROUTER.modern_minimal;
 
     // 4. LLM Pipeline Stage B: Expand prompt parameters with detailed image generation rules
     const promptExpanderPrompt = `You are a creative director. Turn this card project into a deeply rich 1:1 image prompt description.
@@ -191,7 +185,7 @@ export default async function handler(req, res) {
 
     const uniqueSeed = Math.floor(Math.random() * 99999) + 1;
 
-    // 5. Trigger FLUX to bake pixel elements directly into image content matrix streams
+    // 5. Trigger FLUX to generate image
     let finalInlineImageSource;
     try {
       finalInlineImageSource = await generatePrimaryAIImageBase64(expandedPromptPayload, uniqueSeed);
@@ -201,12 +195,25 @@ export default async function handler(req, res) {
     }
 
     const sanitizedImageUrl = sanitizeForXML(finalInlineImageSource);
+    const sanitizedGreeting = sanitizeForXML(cardTextDetails.headline_greeting);
+    const sanitizedMessage = sanitizeForXML(message);
+
+    // Dynamic Font Family CSS Match Engine
+    let fontStack = "Helvetica, Arial, sans-serif";
+    if (chosenFont === "times") fontStack = "'Times New Roman', Times, serif";
+    if (chosenFont === "courier") fontStack = "'Courier New', Courier, monospace";
+
+    // Clean numerical font size value parsing for scaling calculations
+    let baseFontSize = parseInt(chosenSize, 10) || 20;
+    // Scale typography values dynamically for our high-resolution 1200x800 canvas view
+    let renderedTitleSize = Math.floor(baseFontSize * 1.6);
+    let renderedBodySize = Math.floor(baseFontSize * 0.9);
 
     // =========================================================================
     // 6. PIPELINE STEP D: PRINT SPREAD LAYOUT SHEET EMULATION MATRIX COMPILER
     // =========================================================================
     // Builds a matching 1200x800 blueprint document sheet format matching image_cf6f82.png
-    const hybridSvgDocument = `<svg xmlns="${SVG_XMLNS_URI}" viewBox="0 0 1200 800" width="100%" height="100%" style="background-color: #ffffff;">
+    const hybridSvgDocument = `<svg xmlns="${SVG_XMLNS_URI}" viewBox="0 0 1200 800" width="100%" height="100%" style="background-color: #ffffff; font-family: ${fontStack};">
       <g transform="translate(50, 50)">
         <rect width="500" height="700" fill="${layoutConfig.accentColor}" rx="8" />
         
@@ -222,9 +229,13 @@ export default async function handler(req, res) {
       <g transform="translate(650, 50)">
         <rect width="500" height="700" fill="none" stroke="#e5e7eb" stroke-width="2" rx="8" />
         
+        <text x="40" y="80" font-size="${renderedTitleSize}px" font-weight="bold" fill="${chosenColor}">${sanitizedGreeting}</text>
+        
+        <text x="40" y="140" font-size="${renderedBodySize}px" fill="${chosenColor}" opacity="0.85">${sanitizedMessage}</text>
+
         <rect x="360" y="40" width="100" height="120" fill="none" stroke="#9ca3af" stroke-width="2" stroke-dasharray="4,4" rx="4" />
         
-        <line x1="250" y1="200" x2="250" y2="650" stroke="#e5e7eb" stroke-width="2" />
+        <line x1="250" y1="220" x2="250" y2="650" stroke="#e5e7eb" stroke-width="2" />
         
         <line x1="40" y1="420" x2="460" y2="420" stroke="#9ca3af" stroke-width="1.5" />
         <line x1="40" y1="490" x2="460" y2="490" stroke="#9ca3af" stroke-width="1.5" />
@@ -241,12 +252,11 @@ export default async function handler(req, res) {
       status: "success",
       file_url: finalStoredImageUrl,
       recipient_context: recipient,
-      style_route_confirmed: activeRouteKey
+      style_route_confirmed: cardTextDetails.style_key
     });
 
   } catch (error) {
     console.error("💥 CORE INTEGRATION CRASH OCCURRENCE:", error.message);
-    // Hard fallback backup vector stream image sheet container to prevent infinite loaders loop stalling
     return res.status(200).json({ 
       status: "success", 
       file_url: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAwIiBoZWlnaHQ9IjgwMCI+PHJlY3Qgd2lkdGg9IjEyMDAiIGhlaWdodD0iODAwIiBmaWxsPSIjZjFmMmY2Ii8+PHRleHQgeD0iMzAwIiB5PSI0MDAiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiBmaWxsPSIjOGE4YThhIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5QcmV2aWV3IEdlbmVyYXRpb24gRXJyb3I8L3RleHQ+PC9zdmc+" 
