@@ -1,6 +1,7 @@
 // =========================================================================
 // 1. GLOBAL ENGINE CONFIGURATION & UTILITIES
 // =========================================================================
+// MATCHING VERCEL CONFIGURATION LAYER: Fixed key assignment targeting live environment
 const SILICON_FLOW_KEY = process.env.SILICONFLOW_API_KEY;
 
 const TEXT_API_URL = "https://api.siliconflow.com/v1/chat/completions";
@@ -53,7 +54,7 @@ function extractValueFromMultipart(bodyStr, fieldName) {
 // 2. BACKEND LAYER CONNECTIONS (LLAMA-3 & FLUX)
 // =========================================================================
 async function callLLMProvider(promptText) {
-  if (!SILICON_FLOW_KEY) throw new Error("Missing SILICON_FLOW_KEY configuration.");
+  if (!SILICON_FLOW_KEY) throw new Error("Missing SILICONFLOW_API_KEY configuration.");
 
   const response = await fetch(TEXT_API_URL, {
     method: 'POST',
@@ -149,7 +150,7 @@ export default async function handler(req, res) {
     const userSelectedTheme = extractValueFromMultipart(rawPayloadString, 'userSelectedTheme');
 
     // -----------------------------------------------------------------------
-    // CRITICAL OBJECTIVE LOG: This displays everything beautifully inside your Vercel Dashboard!
+    // SYSTEM LOG BLOCK
     // -----------------------------------------------------------------------
     console.log("=========================================================");
     console.log("📥 INTERCEPTED INBOUND WEB CONNECTION STREAM FROM SHOPIFY:");
@@ -180,7 +181,7 @@ export default async function handler(req, res) {
     const activeRouteKey = userSelectedTheme || cardTextDetails.style_key;
     const layoutConfig = FRAMING_LAYOUT_ROUTER[activeRouteKey] || FRAMING_LAYOUT_ROUTER.modern_minimal;
 
-    // 4. Pipeline Step B: Profound Prompt Expansion Layer (Fulfills Core Pipeline Upgrades)
+    // 4. Pipeline Step B: Profound Prompt Expansion Layer
     const promptExpanderPrompt = `You are a creative director. Turn this card project into a deeply rich 1:1 image prompt description.
     Occasion Framework: "${occasion}"
     Design Theme Concept Notes: "${message}"
@@ -212,18 +213,20 @@ export default async function handler(req, res) {
     const sanitizedImageUrl = sanitizeForXML(finalInlineImageSource);
 
     // 6. Pipeline Step D: Compilation - Wrap artwork inside dynamic SVG accent borders
-    const hybridSvgDocument = `<svg xmlns="${SVG_XMLNS_URI}" viewBox="0 0 800 800" width="100%" height="100%">
-      <rect width="800" height="800" fill="${layoutConfig.accentColor}" />
-      <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
-      <rect width="800" height="800" fill="${layoutConfig.borderColor}" opacity="${layoutConfig.overlayOpacity}" />
-      <rect width="800" height="800" fill="none" stroke="${layoutConfig.borderColor}" stroke-width="${layoutConfig.strokeWidth}" />
-      <rect x="20" y="20" width="760" height="760" fill="none" stroke="${layoutConfig.accentColor}" stroke-width="2" stroke-opacity="0.3" />
+    // Uses explicit viewbox percentages to ensure cross-browser scaling stability
+    const hybridSvgDocument = `<svg xmlns="${SVG_XMLNS_URI}" viewBox="0 0 800 800" width="100%" height="100%" style="background-color: ${layoutConfig.accentColor};">
+      <g>
+        <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
+        <rect width="800" height="800" fill="${layoutConfig.borderColor}" opacity="${layoutConfig.overlayOpacity}" pointer-events="none" />
+        <rect width="800" height="800" fill="none" stroke="${layoutConfig.borderColor}" stroke-width="${layoutConfig.strokeWidth}" />
+        <rect x="20" y="20" width="760" height="760" fill="none" stroke="${layoutConfig.accentColor}" stroke-width="2" stroke-opacity="0.3" />
+      </g>
     </svg>`.trim();
 
     const base64Content = Buffer.from(hybridSvgDocument).toString('base64');
     const finalStoredImageUrl = `data:image/svg+xml;base64,${base64Content}`;
 
-    // 7. Output Response: Returns the URL so line 988 of their frontend code (`const { file_url } = await uploadRes.json()`) continues executing cleanly!
+    // 7. Output Response: Returns data back to your custom frontend script hooks
     return res.status(200).json({
       status: "success",
       file_url: finalStoredImageUrl,
