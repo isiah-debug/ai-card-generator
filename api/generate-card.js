@@ -1,7 +1,7 @@
 // =========================================================================
 // 1. GLOBAL ENGINE CONFIGURATION & UTILITIES
 // =========================================================================
-const SILICON_FLOW_KEY = process.env.SILICON_FLOW_KEY;
+const SILICON_FLOW_KEY = process.env.SILICONFLOW_API_KEY;
 
 const TEXT_API_URL = "https://api.siliconflow.com/v1/chat/completions";
 const IMAGE_API_URL = "https://api.siliconflow.com/v1/images/generations";
