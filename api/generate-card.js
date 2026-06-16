@@ -1,5 +1,5 @@
 // =========================================================================
-// 1. CONFIGURATION & CLEAN XML NAMESPACES
+// 1. CONFIGURATION, ENDPOINTS & UTILITIES
 // =========================================================================
 const SILICON_FLOW_KEY = process.env.SILICON_FLOW_KEY;
 
@@ -36,13 +36,19 @@ function cleanAndParseJSON(rawString) {
   return JSON.parse(cleanStr);
 }
 
+// Style variations mapped automatically
+const FRAMING_LAYOUT_ROUTER = {
+  vibrant_playful: { borderColor: "#FF4A75", accentColor: "#FFD166", strokeWidth: "16", overlayOpacity: "0.08", fontStyleDescription: "bold bubble colorful festive typography" },
+  classic_elegant: { borderColor: "#D4AF37", accentColor: "#2C3E50", strokeWidth: "8", overlayOpacity: "0.15", fontStyleDescription: "luxurious gold script copperplate calligraphy text" },
+  retro_vintage: { borderColor: "#FF8C42", accentColor: "#FFF2D7", strokeWidth: "12", overlayOpacity: "0.12", fontStyleDescription: "1970s distressed retro bold pop-art lettering" },
+  modern_minimal: { borderColor: "#38bdf8", accentColor: "#ffffff", strokeWidth: "4", overlayOpacity: "0.03", fontStyleDescription: "sleek modernist crisp sans-serif geometric clean typeface" }
+};
+
 // =========================================================================
-// 2. TEXT COGNITION LAYER (NEX-N2-PRO)
+// 2. AI COGNITION LAYER (Llama-3-8B)
 // =========================================================================
 async function callLLMProvider(promptText) {
-  if (!SILICON_FLOW_KEY) {
-    throw new Error("Missing SILICON_FLOW_KEY configuration variable layout.");
-  }
+  if (!SILICON_FLOW_KEY) throw new Error("Missing SILICON_FLOW_KEY.");
 
   const response = await fetch(TEXT_API_URL, {
     method: 'POST',
@@ -51,39 +57,23 @@ async function callLLMProvider(promptText) {
       'Authorization': `Bearer ${SILICON_FLOW_KEY.trim()}`
     },
     body: JSON.stringify({
-      model: "nex-agi/Nex-N2-Pro",
+      model: "meta-llama/Meta-Llama-3-8B-Instruct", 
       messages: [{ role: "user", content: promptText }],
       temperature: 0.7
     })
   });
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`LLM Response Error: ${response.status} - ${errText}`);
-  }
-
+  if (!response.ok) throw new Error(`LLM Error: ${response.status}`);
   const data = await response.json();
-  if (!data.choices || data.choices.length === 0) {
-    throw new Error("Returned content block collection is completely empty.");
-  }
   return cleanAndParseJSON(data.choices[0].message.content);
 }
 
 // =========================================================================
-// 3. IMAGE GENERATION (DYNAMIC PIPELINE WITH FLUX)
+// 3. IMAGE GENERATION LAYER (FLUX)
 // =========================================================================
-async function generatePrimaryAIImageBase64(occasion, tone, uniqueSeed) {
-  if (!SILICON_FLOW_KEY) {
-    throw new Error("Invalid key format structure configuration layout.");
-  }
-
-  let cleanKey = SILICON_FLOW_KEY.trim();
-  if (cleanKey.toLowerCase().startsWith("bearer ")) {
-    cleanKey = cleanKey.slice(7).trim();
-  }
-
-  // AGGRESSIVE NEGATIVE PROMPTS: Forbids FLUX from trying to bake messy AI text elements into your background canvas pattern
-  const optimizedPrompt = `A completely blank, textless background illustration pattern for a card wallpaper canvas. Theme: ${occasion}. Style: ${tone}. High-quality flat vector design aesthetic, artistic scenery landscape, cinematic lighting. Strictly NO text, NO words, NO letters, NO typography written on the image, blank space, masterpiece painting`;
+async function generatePrimaryAIImageBase64(expandedPrompt, uniqueSeed) {
+  if (!SILICON_FLOW_KEY) throw new Error("Missing API Key.");
+  let cleanKey = SILICON_FLOW_KEY.trim().replace(/^bearer\s+/i, '');
 
   const response = await fetch(IMAGE_API_URL, {
     method: 'POST',
@@ -93,23 +83,15 @@ async function generatePrimaryAIImageBase64(occasion, tone, uniqueSeed) {
     },
     body: JSON.stringify({
       model: "black-forest-labs/FLUX.1-schnell",
-      prompt: optimizedPrompt,
+      prompt: expandedPrompt,
       image_size: "1024x1024",
       seed: uniqueSeed,
       num_inference_steps: 4
     })
   });
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`[SiliconFlow Server Error]: ${response.status} - ${errText}`);
-  }
-
+  if (!response.ok) throw new Error(`FLUX Error: ${response.status}`);
   const data = await response.json();
-  if (!data.images || data.images.length === 0) {
-    throw new Error("Empty image asset block return vector matrix array.");
-  }
-  
   const asset = data.images[0];
   let piece = typeof asset === 'string' ? asset : (asset.b64_json || asset.url);
   
@@ -120,88 +102,92 @@ async function generatePrimaryAIImageBase64(occasion, tone, uniqueSeed) {
 }
 
 function generateSafeLocalFallbackBackground() {
-  const rawVectorSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="#1e293b" /><circle cx="400" cy="400" r="300" fill="#38bdf8" fill-opacity="0.1" /><rect width="800" height="800" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="20" /></svg>`;
-  return `data:image/svg+xml;base64,${Buffer.from(rawVectorSvg.trim()).toString('base64')}`;
+  const rawVectorSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800"><rect width="800" height="800" fill="#1e293b" /></svg>`;
+  return `data:image/svg+xml;base64,${Buffer.from(rawVectorSvg).toString('base64')}`;
 }
 
 // =========================================================================
-// MAIN SERVERLESS ENDPOINT ROUTE
+// BACKEND ROUTE HANDLER
 // =========================================================================
 export default async function handler(req, res) {
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    return res.status(200).end();
-  }
-
+  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const body = getRequestBody(req);
   
-  const { occasion, recipient, tone, message } = body;
+  // -----------------------------------------------------------------------
+  // VERCEL LIVE LOG STREAM: This shows the frontend fields arriving!
+  // -----------------------------------------------------------------------
+  console.log("=========================================================");
+  console.log("📥 SHOPIFY FRONTEND FIELDS DETECTED:");
+  console.log(JSON.stringify(body, null, 2));
+  console.log("=========================================================");
 
-  // Mandatory input validation layer
+  const { occasion, recipient, tone, message, userSelectedTheme } = body;
+
   if (!occasion || !recipient) {
-    return res.status(400).json({
-      status: "error",
-      message: "Validation Error: 'occasion' and 'recipient' parameters are required data fields."
-    });
+    return res.status(400).json({ status: "error", message: "Missing required fields." });
   }
 
   try {
-    // Request an ultra-short phrase matching the milestone occasion
-    const systemPrompt = `Create an ultra-short, punchy greeting title phrase for a card design based on the celebration occasion: "${occasion}" and tone: "${tone}".
-    Return a clean JSON object structure with this exact key:
-    "headline_greeting": "A short basic 2-3 word milestone title phrase (e.g. HAPPY BIRTHDAY, CONGRATULATIONS CHAMP! etc.)"`;
-    
+    // 1. Text Generation Step
+    const copywritingDirectivePrompt = `Analyze this request: Occasion: "${occasion}", Recipient: "${recipient}", Tone: "${tone || 'festive'}", Message: "${message || ''}".
+    Return a strict JSON object structure:
+    {
+      "style_key": "vibrant_playful", or "classic_elegant", or "retro_vintage", or "modern_minimal",
+      "headline_greeting": "Short 2-3 word greeting title phrase (e.g. HAPPY BIRTHDAY)"
+    }`;
+
     let cardTextDetails;
     try {
-      cardTextDetails = await callLLMProvider(systemPrompt);
-      if (!cardTextDetails.headline_greeting) {
-        throw new Error("Key fields parsed out empty.");
-      }
+      cardTextDetails = await callLLMProvider(copywritingDirectivePrompt);
     } catch (err) {
-      cardTextDetails = {
-        headline_greeting: `${occasion.toUpperCase()}!`
-      };
+      cardTextDetails = { style_key: "modern_minimal", headline_greeting: `${occasion.toUpperCase()}!` };
+    }
+
+    const activeRouteKey = userSelectedTheme || cardTextDetails.style_key;
+    const layoutConfig = FRAMING_LAYOUT_ROUTER[activeRouteKey] || FRAMING_LAYOUT_ROUTER.modern_minimal;
+
+    // 2. Profound Prompt Expansion Step (Incorporate User's Input + Native Text Request)
+    const promptExpanderPrompt = `You are an art director. Create an explicit graphic design layout prompt for an image engine based on:
+    Occasion context: "${occasion}"
+    User design idea details: "${message || occasion}"
+    
+    CRITICAL DIRECTION: The rendering engine MUST physically print the exact text string "${cardTextDetails.headline_greeting}" directly onto the visual design canvas. The text style must look like a clean, beautiful ${layoutConfig.fontStyleDescription}. Ensure beautiful centering, absolute legibility, and correct spelling.
+    
+    Return strict JSON: {"expanded_prompt": "your long expanded layout illustration prompt rules here"}`;
+
+    let expandedPromptPayload;
+    try {
+      const expansionData = await callLLMProvider(promptExpanderPrompt);
+      expandedPromptPayload = expansionData.expanded_prompt;
+      console.log(`🚀 EXPANDED ART PROMPT: "${expandedPromptPayload}"`);
+    } catch (err) {
+      expandedPromptPayload = `A beautiful greeting card background artwork layout for ${occasion} featuring the words "${cardTextDetails.headline_greeting}" cleanly integrated.`;
     }
 
     const uniqueSeed = Math.floor(Math.random() * 99999) + 1;
 
+    // 3. Generate FLUX Art with Text Baked In
     let finalInlineImageSource;
     try {
-      finalInlineImageSource = await generatePrimaryAIImageBase64(occasion, tone || "festive", uniqueSeed);
+      finalInlineImageSource = await generatePrimaryAIImageBase64(expandedPromptPayload, uniqueSeed);
     } catch (primaryErr) {
-      console.error("=== IMAGE PIPELINE FAILURE ===", primaryErr.message);
       finalInlineImageSource = generateSafeLocalFallbackBackground();
     }
 
-    const sanitizedHeadline = sanitizeForXML(cardTextDetails.headline_greeting).toUpperCase();
     const sanitizedImageUrl = sanitizeForXML(finalInlineImageSource);
 
-    // Dynamic, transparent layout structure keeping text elevated high at y=180
+    // 4. Wrap with Dynamic Borders
     const hybridSvgDocument = `<svg xmlns="${SVG_XMLNS_URI}" viewBox="0 0 800 800" width="100%" height="100%">
-      <defs>
-        <filter id="drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.8"/>
-        </filter>
-      </defs>
-
-      <rect width="800" height="800" fill="#151c2c" />
+      <rect width="800" height="800" fill="${layoutConfig.accentColor}" />
       <image href="${sanitizedImageUrl}" x="0" y="0" width="800" height="800" preserveAspectRatio="xMidYMid slice" />
-      
-      <rect width="800" height="800" fill="none" stroke="#0b0f19" stroke-width="40" stroke-opacity="0.15" />
-      <rect x="25" y="25" width="750" height="750" fill="none" stroke="#ffffff" stroke-width="2" stroke-opacity="0.25" />
-
-      <g transform="translate(400, 180)" filter="url(#drop-shadow)">
-        <text text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="46" fill="#ffffff" letter-spacing="2" text-transform="uppercase">${sanitizedHeadline}</text>
-        <line x1="-60" y1="20" x2="60" y2="20" stroke="#38bdf8" stroke-width="5" stroke-linecap="round" />
-      </g>
+      <rect width="800" height="800" fill="${layoutConfig.borderColor}" opacity="${layoutConfig.overlayOpacity}" />
+      <rect width="800" height="800" fill="none" stroke="${layoutConfig.borderColor}" stroke-width="${layoutConfig.strokeWidth}" />
     </svg>`.trim();
 
     const base64Content = Buffer.from(hybridSvgDocument).toString('base64');
@@ -209,15 +195,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       status: "success",
-      card_type: "Custom Simplified Greeting Card",
-      recipient: recipient,
-      tone_context: tone || "default",
-      user_message_retained: message || "", 
-      card_text: cardTextDetails,
-      print_configuration: {
-        physical_dimensions: "4x4 inches",
-        stored_image_url: finalStoredImageUrl
-      }
+      recipient,
+      print_configuration: { stored_image_url: finalStoredImageUrl }
     });
 
   } catch (error) {
