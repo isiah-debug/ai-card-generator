@@ -88,9 +88,7 @@ async function generatePrimaryAIImageBase64(expandedPrompt, uniqueSeed) {
     body: JSON.stringify({
       model: "black-forest-labs/FLUX.1-schnell",
       prompt: expandedPrompt,
-      image_size: "1024x1024",
-      seed: uniqueSeed,
-      num_inference_steps: 4
+      image_size: "1024x1024"
     })
   });
 
@@ -101,7 +99,7 @@ async function generatePrimaryAIImageBase64(expandedPrompt, uniqueSeed) {
 
   const data = await response.json();
   const asset = data.images[0];
-  let piece = typeof asset === 'string' ? asset : (asset.b64_json || asset.url);
+  let piece = typeof asset === 'string' ? asset : (asset.url || asset.b64_json);
    
   if (piece && !piece.startsWith('data:') && !piece.startsWith('http')) {
     return `data:image/png;base64,${piece}`;
@@ -110,7 +108,7 @@ async function generatePrimaryAIImageBase64(expandedPrompt, uniqueSeed) {
 }
 
 function generateSafeLocalFallbackBackground() {
-  const rawVectorSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800"><rect width="800" height="800" fill="#1e293b" /><circle cx="400" cy="400" r="150" fill="#38bdf8" opacity="0.2"/></svg>`;
+  const rawVectorSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800"><rect width="800" height="800" fill="#1e293b" /><text x="400" y="400" font-family="sans-serif" font-size="22" fill="#64748b" text-anchor="middle">Artwork Pipeline Refresh Active...</text></svg>`;
   return `data:image/svg+xml;base64,${Buffer.from(rawVectorSvg.trim()).toString('base64')}`;
 }
 
@@ -132,19 +130,16 @@ export default async function handler(req, res) {
     const buffer = Buffer.concat(chunks);
     const rawPayloadString = buffer.toString('utf-8');
 
-    // 1. Core Text Prompts - handles reading both frontend key updates safely
+    // 1. Core Text Prompts - Safely captures cross-platform parameter fields
     const occasion = extractValueFromMultipart(rawPayloadString, 'occasion') || "Celebration";
     const recipient = extractValueFromMultipart(rawPayloadString, 'recipient') || extractValueFromMultipart(rawPayloadString, 'prompt') || "Someone Special";
     const tone = extractValueFromMultipart(rawPayloadString, 'tone') || "festive";
     const message = extractValueFromMultipart(rawPayloadString, 'message') || occasion;
 
-    const chosenFont = extractValueFromMultipart(rawPayloadString, 'font') || "helvetica";
-    const chosenColor = extractValueFromMultipart(rawPayloadString, 'color') || "#000000";
-    const chosenSize = extractValueFromMultipart(rawPayloadString, 'size') || "20px";
-
     console.log("=========================================================");
-    console.log("📥 PROCESSING AI PAYLOAD:");
-    console.log(` -> Prompt/Recipient: ${recipient} | Occasion: ${occasion}`);
+    console.log("📥 PIPELINE DISPATCH LOG:");
+    console.log(` -> Prompt Raw Target: ${recipient}`);
+    console.log(` -> Occasion Context: ${occasion}`);
     console.log("=========================================================");
 
     // 2. LLM Pipeline Stage A: Formulate Copywriting Styles
@@ -164,11 +159,12 @@ export default async function handler(req, res) {
     const layoutConfig = FRAMING_LAYOUT_ROUTER[cardTextDetails.style_key] || FRAMING_LAYOUT_ROUTER.modern_minimal;
 
     // 3. LLM Pipeline Stage B: Expand prompt parameters with detailed image generation rules
-    const promptExpanderPrompt = `You are a creative director. Turn this card project into a deeply rich 1:1 image prompt description.
-    Occasion Framework: "${occasion}"
-    Design Theme Concept Notes: "${message}"
+    const promptExpanderPrompt = `You are an expert card designer. Turn this request into a high-quality 1:1 image generation prompt description for an greeting card cover background design.
+    Occasion Theme: "${occasion}"
+    Design Topic Context: "${recipient}"
+    Tone Vibe: "${tone}"
     
-    CRITICAL TEXT LAYOUT DIRECTION: You must command the image rendering engine to draw the exact lettering phrase "${cardTextDetails.headline_greeting}" directly into the artwork picture pixel matrix. This text typography style must be rendered as a beautifully clean ${layoutConfig.fontStyleDescription}. Ensure perfect symmetry centering, absolute clean readability, and flawless spelling. No extraneous text.
+    CRITICAL VISUAL REQUISITE: The card graphic artwork must explicitly capture themes relating to "${recipient}". It must look custom, graphic, modern, vibrant, and tailored for a greeting card cover layout. Do not generate a generic floral card template unless specifically requested.
     
     Return strict JSON: {"expanded_prompt": "your long expanded detailed prompt description layout rules here"}`;
 
@@ -177,24 +173,28 @@ export default async function handler(req, res) {
       const expansionData = await callLLMProvider(promptExpanderPrompt);
       expandedPromptPayload = expansionData.expanded_prompt;
     } catch (err) {
-      expandedPromptPayload = `A beautiful flat layout greeting card vector artwork background illustration for ${occasion} with the words "${cardTextDetails.headline_greeting}" cleanly printed in the canvas center.`;
+      expandedPromptPayload = `A beautiful custom greeting card vector illustration cover background for ${occasion}, themed specifically around ${recipient}. Clean graphic design art style.`;
     }
+
+    // Force injection of priority design constraints to make sure the AI updates its scenery
+    const highlyEngineeredArtPrompt = `Greeting card graphic illustration art, beautiful vector design layout, vivid composition, focused center design, high definition artwork canvas. Visual theme topic: ${expandedPromptPayload}`.trim();
 
     const uniqueSeed = Math.floor(Math.random() * 99999) + 1;
 
     // 4. Trigger FLUX to generate image
     let finalInlineImageSource;
     try {
-      finalInlineImageSource = await generatePrimaryAIImageBase64(expandedPromptPayload, uniqueSeed);
+      console.log("🎨 Sending Live Prompt to Flux:", highlyEngineeredArtPrompt);
+      finalInlineImageSource = await generatePrimaryAIImageBase64(highlyEngineeredArtPrompt, uniqueSeed);
     } catch (primaryErr) {
       console.error("❌ DOWNSTREAM FALLBACK ACTIVE:", primaryErr.message);
       finalInlineImageSource = generateSafeLocalFallbackBackground();
     }
 
     // =========================================================================
-    // 5. BYPASS RECTANGLE GRID SHEET & DELIVER RAW ARTWORK DIRECTLY
+    // 5. BYPASS RECTANGLE SPREAD & STREAM THE AI ARTWORK SOURCE DIRECTLY
     // =========================================================================
-    // We drop the 1200x800 template and return the fresh 1:1 AI picture url immediately!
+    // Streams the raw full-scale AI illustration url straight back to Shopify
     const finalStoredImageUrl = finalInlineImageSource;
 
     return res.status(200).json({
