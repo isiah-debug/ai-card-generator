@@ -88,7 +88,7 @@ async function generatePrimaryAIImageBase64(expandedPrompt, uniqueSeed) {
     body: JSON.stringify({
       model: "black-forest-labs/FLUX.1-schnell",
       prompt: expandedPrompt,
-      image_size: "1024x1024"
+      image_size: "768x1024" // 👈 CRITICAL FIX: Forces Portrait Mode layout generation
     })
   });
 
@@ -108,7 +108,7 @@ async function generatePrimaryAIImageBase64(expandedPrompt, uniqueSeed) {
 }
 
 function generateSafeLocalFallbackBackground() {
-  const rawVectorSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800"><rect width="800" height="800" fill="#1e293b" /><text x="400" y="400" font-family="sans-serif" font-size="22" fill="#64748b" text-anchor="middle">Artwork Pipeline Refresh Active...</text></svg>`;
+  const rawVectorSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="768" height="1024"><rect width="768" height="1024" fill="#1e293b" /><text x="384" y="512" font-family="sans-serif" font-size="24" fill="#64748b" text-anchor="middle">Loading Card Canvas Art...</text></svg>`;
   return `data:image/svg+xml;base64,${Buffer.from(rawVectorSvg.trim()).toString('base64')}`;
 }
 
@@ -137,9 +137,8 @@ export default async function handler(req, res) {
     const message = extractValueFromMultipart(rawPayloadString, 'message') || occasion;
 
     console.log("=========================================================");
-    console.log("📥 PIPELINE DISPATCH LOG:");
-    console.log(` -> Prompt Raw Target: ${recipient}`);
-    console.log(` -> Occasion Context: ${occasion}`);
+    console.log("📥 PORTRAIT AI PIPELINE DISPATCH LOG:");
+    console.log(` -> Prompt: ${recipient} | Occasion: ${occasion}`);
     console.log("=========================================================");
 
     // 2. LLM Pipeline Stage A: Formulate Copywriting Styles
@@ -164,7 +163,7 @@ export default async function handler(req, res) {
     Design Topic Context: "${recipient}"
     Tone Vibe: "${tone}"
     
-    CRITICAL VISUAL REQUISITE: The card graphic artwork must explicitly capture themes relating to "${recipient}". It must look custom, graphic, modern, vibrant, and tailored for a greeting card cover layout. Do not generate a generic floral card template unless specifically requested.
+    CRITICAL VISUAL REQUISITE: The card graphic artwork must explicitly capture themes relating to "${recipient}". It must look custom, graphic, modern, vibrant, and tailored for a portrait layout greeting card cover. Do not generate a generic floral card template unless specifically requested.
     
     Return strict JSON: {"expanded_prompt": "your long expanded detailed prompt description layout rules here"}`;
 
@@ -177,7 +176,7 @@ export default async function handler(req, res) {
     }
 
     // Force injection of priority design constraints to make sure the AI updates its scenery
-    const highlyEngineeredArtPrompt = `Greeting card graphic illustration art, beautiful vector design layout, vivid composition, focused center design, high definition artwork canvas. Visual theme topic: ${expandedPromptPayload}`.trim();
+    const highlyEngineeredArtPrompt = `Greeting card graphic illustration art, beautiful portrait vector design layout, vertical composition, vivid focused center design, high definition artwork canvas. Visual theme topic: ${expandedPromptPayload}`.trim();
 
     const uniqueSeed = Math.floor(Math.random() * 99999) + 1;
 
@@ -192,9 +191,8 @@ export default async function handler(req, res) {
     }
 
     // =========================================================================
-    // 5. BYPASS RECTANGLE SPREAD & STREAM THE AI ARTWORK SOURCE DIRECTLY
+    // 5. STREAM THE RAW NATIVE PORTRAIT ARTWORK DIRECTLY
     // =========================================================================
-    // Streams the raw full-scale AI illustration url straight back to Shopify
     const finalStoredImageUrl = finalInlineImageSource;
 
     return res.status(200).json({
@@ -208,7 +206,7 @@ export default async function handler(req, res) {
     console.error("💥 CORE INTEGRATION CRASH OCCURRENCE:", error.message);
     return res.status(200).json({ 
       status: "success", 
-      file_url: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MDAiIGhlaWdodD0iODAwIj48cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9IjgwMCIgZmlsbD0iI2Y4ZmFmYyIvPjx0ZXh0IHg9IjQwMCIgeT0iNDAwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzY0NzQ4YiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+R2VuZXJhdGluZyB5b3VyIEFpIEFydHdvcmsuLi48L3RleHQ+PC9zdmc+" 
+      file_url: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI3NjgiIGhlaWdodD0iMTAyNCI+PHJlY3Qgd2lkdGg9Ijc2OCIgaGVpZ2h0PSIxMDI0IiBmaWxsPSIjZjhmYWZjIi8+PHRleHQgeD0iMzg0IiB5PSI1MTIiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiBmaWxsPSIjNjQ3NDhiIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5HZW5lcmF0aW5nIHlvdXIgQWkgQXJ0d29yay4uLjwvdGV4dDwpPC9zdmc+" 
     });
   }
 }
