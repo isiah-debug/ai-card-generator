@@ -2,7 +2,7 @@ const SILICON_FLOW_KEY = process.env.SILICONFLOW_API_KEY;
 const TEXT_API_URL = "https://api.siliconflow.com/v1/chat/completions";
 const IMAGE_API_URL = "https://api.siliconflow.com/v1/images/generations";
 
-export const config = { api: { bodyParser: false } };
+// 🌟 CRITICAL: We removed "bodyParser: false" so Vercel auto-parses req.body as JSON!
 
 function cleanAndParseJSON(rawString) {
   let cleanStr = rawString.trim();
@@ -13,11 +13,6 @@ function cleanAndParseJSON(rawString) {
   const endIdx = cleanStr.lastIndexOf("}");
   if (startIdx === -1 || endIdx === -1) throw new Error("JSON missing.");
   return JSON.parse(cleanStr.substring(startIdx, endIdx + 1));
-}
-
-function extractValueFromMultipart(bodyStr, fieldName) {
-  const match = new RegExp(`name="${fieldName}"[\\r\\n\\s]+([^\\r\\n\\-]+)`, 'i').exec(bodyStr);
-  return match ? match[1].trim() : null;
 }
 
 async function callLLMProvider(promptText) {
@@ -50,29 +45,20 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const chunks = [];
-    for await (const chunk of req) { chunks.push(chunk); }
-    const rawPayloadString = Buffer.concat(chunks).toString('utf-8');
+    // 🎯 Read incoming variables directly from the parsed JSON body safely!
+    const customMessage = req.body?.custom_message;
+    const recipient = req.body?.recipient || "Someone Special";
+    const occasion = req.body?.occasion || "Celebration";
 
-    // 🎯 Dynamically extracts your front-end properties or defaults back to standard configuration values
-    const imageUrl = extractValueFromMultipart(rawPayloadString, 'image_url');
-    const transform = extractValueFromMultipart(rawPayloadString, 'transform');
-    
-    // Grabs custom text field layout or loops back to fallback parameters
-    const customMessage = extractValueFromMultipart(rawPayloadString, 'custom_message');
-    const occasion = extractValueFromMultipart(rawPayloadString, 'occasion') || "Celebration";
-    const recipient = extractValueFromMultipart(rawPayloadString, 'recipient') || extractValueFromMultipart(rawPayloadString, 'prompt') || "Someone Special";
-    const tone = extractValueFromMultipart(rawPayloadString, 'tone') || "festive";
-
-    // Establish the text context variable used by your generation prompts
-    const designContext = customMessage || `A dynamic card themed around ${recipient} for a ${occasion} occasion with a ${tone} tone`;
+    // Establish your design context using the user's custom text, with a safe fallback
+    const designContext = customMessage || `A dynamic card themed around ${recipient} for a ${occasion} occasion`;
 
     // Step 1: Generate clean text greeting using Llama
-    const textPrompt = `Generate a short 2-3 word greeting title for a greeting card matching this context descriptions: "${designContext}". Return strict JSON: {"headline_greeting": "HAPPY BIRTHDAY"}`;
-    let cardText = { headline_greeting: `${occasion.toUpperCase()}!` };
+    const textPrompt = `Generate a short 2-3 word greeting title for a greeting card matching this context: "${designContext}". Return strict JSON: {"headline_greeting": "HAPPY BIRTHDAY"}`;
+    let cardText = { headline_greeting: "FOR YOU!" };
     try { cardText = await callLLMProvider(textPrompt); } catch (e) {}
 
-    // Step 2: Generate unique un-watermarked background illustration using the user context
+    // Step 2: Generate dynamic background asset
     const imagePrompt = `A high-quality vertical portrait greeting card graphic background illustration themed around "${designContext}". Clean vibrant modern composition, poster vector art, sharp details. DO NOT add any words, text, typography, or lettering inside the image graphics. Keep it a clean backdrop scenery.`;
     
     let finalImage;
