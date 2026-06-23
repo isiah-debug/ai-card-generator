@@ -24,7 +24,7 @@ async function callLLMProvider(promptText) {
   return cleanAndParseJSON(data.choices[0].message.content);
 }
 
-// 🎯 FIX: Downloads the image server-side and turns it into a bulletproof base64 data string
+// 🎯 SECURE BASE64 DOWN-CONVERTER
 async function generatePrimaryAIImageBase64(expandedPrompt) {
   let cleanKey = SILICON_FLOW_KEY.trim().replace(/^bearer\s+/i, '');
   const response = await fetch(IMAGE_API_URL, {
@@ -40,7 +40,7 @@ async function generatePrimaryAIImageBase64(expandedPrompt) {
   if (!imageUrl) throw new Error("No image data paths found in payload.");
   if (imageUrl.startsWith('data:')) return imageUrl;
 
-  // Fetch the remote asset securely server-to-server (bypassing browser CORS)
+  // Fetch the remote asset securely server-to-server (bypassing browser CORS completely)
   const imgResponse = await fetch(imageUrl);
   if (!imgResponse.ok) throw new Error(`Failed to download asset from image server: ${imgResponse.status}`);
   
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
     let cardText = { headline_greeting: "FOR YOU!" };
     try { cardText = await callLLMProvider(textPrompt); } catch (e) {}
     
-    // Fetch and compress into a clean Base64 data string
+    // Fetch and compress into a safe Base64 string context
     const finalBase64Image = await generatePrimaryAIImageBase64(designContext);
 
     return res.status(200).json({
