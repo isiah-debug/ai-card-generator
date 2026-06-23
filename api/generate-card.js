@@ -54,17 +54,26 @@ export default async function handler(req, res) {
     for await (const chunk of req) { chunks.push(chunk); }
     const rawPayloadString = Buffer.concat(chunks).toString('utf-8');
 
+    // 🎯 Dynamically extracts your front-end properties or defaults back to standard configuration values
+    const imageUrl = extractValueFromMultipart(rawPayloadString, 'image_url');
+    const transform = extractValueFromMultipart(rawPayloadString, 'transform');
+    
+    // Grabs custom text field layout or loops back to fallback parameters
+    const customMessage = extractValueFromMultipart(rawPayloadString, 'custom_message');
     const occasion = extractValueFromMultipart(rawPayloadString, 'occasion') || "Celebration";
     const recipient = extractValueFromMultipart(rawPayloadString, 'recipient') || extractValueFromMultipart(rawPayloadString, 'prompt') || "Someone Special";
     const tone = extractValueFromMultipart(rawPayloadString, 'tone') || "festive";
 
+    // Establish the text context variable used by your generation prompts
+    const designContext = customMessage || `A dynamic card themed around ${recipient} for a ${occasion} occasion with a ${tone} tone`;
+
     // Step 1: Generate clean text greeting using Llama
-    const textPrompt = `Generate a short 2-3 word greeting title for an occasion: "${occasion}" for "${recipient}" with a "${tone}" tone. Return strict JSON: {"headline_greeting": "HAPPY BIRTHDAY"}`;
+    const textPrompt = `Generate a short 2-3 word greeting title for a greeting card matching this context descriptions: "${designContext}". Return strict JSON: {"headline_greeting": "HAPPY BIRTHDAY"}`;
     let cardText = { headline_greeting: `${occasion.toUpperCase()}!` };
     try { cardText = await callLLMProvider(textPrompt); } catch (e) {}
 
-    // Step 2: Generate background illustration WITHOUT letting AI generate embedded text pixels
-    const imagePrompt = `A high-quality vertical portrait greeting card graphic background illustration themed around "${recipient}" for a "${occasion}" event. Clean vibrant modern composition, poster vector art, sharp details. DO NOT add any words, text, typography, or lettering inside the image graphics. Keep it a clean backdrop scenery.`;
+    // Step 2: Generate unique un-watermarked background illustration using the user context
+    const imagePrompt = `A high-quality vertical portrait greeting card graphic background illustration themed around "${designContext}". Clean vibrant modern composition, poster vector art, sharp details. DO NOT add any words, text, typography, or lettering inside the image graphics. Keep it a clean backdrop scenery.`;
     
     let finalImage;
     try {
@@ -76,7 +85,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       status: "success",
       file_url: finalImage,
-      headline_greeting: cardText.headline_greeting // 👈 Send text cleanly to the frontend
+      headline_greeting: cardText.headline_greeting
     });
   } catch (error) {
     return res.status(500).json({ status: "error", message: error.message });
