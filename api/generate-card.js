@@ -1,6 +1,8 @@
 const SILICON_FLOW_KEY = process.env.SILICONFLOW_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY; 
+
 const TEXT_API_URL = "https://api.siliconflow.com/v1/chat/completions";
-const IMAGE_API_URL = "https://api.siliconflow.com/v1/images/generations";
+const DALLE3_API_URL = "https://api.openai.com/v1/images/generations";
 
 function cleanAndParseJSON(rawString) {
   let cleanStr = rawString.trim();
@@ -13,8 +15,9 @@ function cleanAndParseJSON(rawString) {
   return JSON.parse(cleanStr.substring(startIdx, endIdx + 1));
 }
 
+
 async function callLLMProvider(promptText) {
-  if (!SILICON_FLOW_KEY) throw new Error("Missing Key.");
+  if (!SILICON_FLOW_KEY) throw new Error("Missing SiliconFlow Key for text.");
   const response = await fetch(TEXT_API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SILICON_FLOW_KEY.trim()}` },
@@ -24,25 +27,41 @@ async function callLLMProvider(promptText) {
   return cleanAndParseJSON(data.choices[0].message.content);
 }
 
-// 🎯 SECURE BASE64 DOWN-CONVERTER
+
 async function generatePrimaryAIImageBase64(expandedPrompt) {
-  let cleanKey = SILICON_FLOW_KEY.trim().replace(/^bearer\s+/i, '');
-  const response = await fetch(IMAGE_API_URL, {
+  if (!OPENAI_API_KEY) throw new Error("Missing OpenAI API Key Configuration.");
+  
+  const response = await fetch(DALLE3_API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cleanKey}` },
-    body: JSON.stringify({ model: "black-forest-labs/FLUX.1-schnell", prompt: expandedPrompt, image_size: "768x1024" })
+    headers: { 
+      'Content-Type': 'application/json', 
+      'Authorization': `Bearer ${OPENAI_API_KEY.trim()}` 
+    },
+    body: JSON.stringify({ 
+      model: "dall-e-3", 
+      prompt: expandedPrompt, 
+      n: 1,
+      size: "1024x1792", 
+      quality: "standard" 
+    })
   });
   
   const data = await response.json();
-  if (!data.images || data.images.length === 0) throw new Error("No images array returned from provider.");
   
-  const imageUrl = data.images[0].url || data.images[0].b64_json;
-  if (!imageUrl) throw new Error("No image data paths found in payload.");
-  if (imageUrl.startsWith('data:')) return imageUrl;
+  if (data.error) {
+    throw new Error(`OpenAI DALL-E 3 API Error: ${data.error.message}`);
+  }
+  
+  if (!data.data || data.data.length === 0) {
+    throw new Error("No image objects returned from DALL-E payload structure.");
+  }
+  
 
-  // Fetch the remote asset securely server-to-server (bypassing browser CORS completely)
+  const imageUrl = data.data[0].url;
+  if (!imageUrl) throw new Error("No image data paths found in OpenAI payload.");
+
   const imgResponse = await fetch(imageUrl);
-  if (!imgResponse.ok) throw new Error(`Failed to download asset from image server: ${imgResponse.status}`);
+  if (!imgResponse.ok) throw new Error(`Failed to download asset from DALL-E image server: ${imgResponse.status}`);
   
   const arrayBuffer = await imgResponse.arrayBuffer();
   const base64String = Buffer.from(arrayBuffer).toString('base64');
@@ -60,13 +79,18 @@ export default async function handler(req, res) {
     const recipient = req.body?.recipient || "Someone Special";
     const occasion = req.body?.occasion || "Celebration";
 
-    const designContext = customMessage || `A dynamic card themed around ${recipient} for a ${occasion} occasion`;
+    let designContext = customMessage || `A dynamic card themed around ${recipient} for a ${occasion} occasion`;
+    
+    
+    designContext += ". Please present this as a clean graphic layout design illustration background. Do not add text phrases, quotes, or letters printed over the card layout image.";
 
     const textPrompt = `Generate a short 2-3 word greeting title for a greeting card matching this context: "${designContext}". Return strict JSON: {"headline_greeting": "HAPPY BIRTHDAY"}`;
     let cardText = { headline_greeting: "FOR YOU!" };
-    try { cardText = await callLLMProvider(textPrompt); } catch (e) {}
+    try { cardText = await callLLMProvider(textPrompt); } catch (e) {
+      console.error("Text headline generator failed, dropping down to default fallback: ", e);
+    }
     
-    // Fetch and compress into a safe Base64 string context
+    
     const finalBase64Image = await generatePrimaryAIImageBase64(designContext);
 
     return res.status(200).json({
@@ -75,7 +99,7 @@ export default async function handler(req, res) {
       headline_greeting: cardText.headline_greeting
     });
   } catch (error) {
-    console.error("Backend runtime crash:", error);
+    console.error("Backend runtime crash under OpenAI architecture:", error);
     return res.status(500).json({ status: "error", message: error.message });
   }
 }
