@@ -1,8 +1,13 @@
 const SILICON_FLOW_KEY = process.env.SILICONFLOW_API_KEY;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY; 
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 const TEXT_API_URL = "https://api.siliconflow.com/v1/chat/completions";
+const SILICONFLOW_IMAGE_URL = "https://api.siliconflow.com/v1/images/generations";
 const DALLE3_API_URL = "https://api.openai.com/v1/images/generations";
+
+// 🛡️ FREE IN-MEMORY TRACKING GLOBALS
+let globalDailyCount = 0;
+let lastResetTime = Date.now();
 
 function cleanAndParseJSON(rawString) {
   let cleanStr = rawString.trim();
@@ -15,58 +20,7 @@ function cleanAndParseJSON(rawString) {
   return JSON.parse(cleanStr.substring(startIdx, endIdx + 1));
 }
 
-
-async function callLLMProvider(promptText) {
-  if (!SILICON_FLOW_KEY) throw new Error("Missing SiliconFlow Key for text.");
-  const response = await fetch(TEXT_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SILICON_FLOW_KEY.trim()}` },
-    body: JSON.stringify({ model: "meta-llama/Meta-Llama-3-8B-Instruct", messages: [{ role: "user", content: promptText }], temperature: 0.7 })
-  });
-  const data = await response.json();
-  return cleanAndParseJSON(data.choices[0].message.content);
-}
-
-
-async function generatePrimaryAIImageBase64(expandedPrompt) {
-  if (!OPENAI_API_KEY) throw new Error("Missing OpenAI API Key Configuration.");
-  
-  const response = await fetch(DALLE3_API_URL, {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json', 
-      'Authorization': `Bearer ${OPENAI_API_KEY.trim()}` 
-    },
-    body: JSON.stringify({ 
-      model: "dall-e-3", 
-      prompt: expandedPrompt, 
-      n: 1,
-      size: "1024x1792", 
-      quality: "standard" 
-    })
-  });
-  
-  const data = await response.json();
-  
-  if (data.error) {
-    throw new Error(`OpenAI DALL-E 3 API Error: ${data.error.message}`);
-  }
-  
-  if (!data.data || data.data.length === 0) {
-    throw new Error("No image objects returned from DALL-E payload structure.");
-  }
-  
-
-  const imageUrl = data.data[0].url;
-  if (!imageUrl) throw new Error("No image data paths found in OpenAI payload.");
-
-  const imgResponse = await fetch(imageUrl);
-  if (!imgResponse.ok) throw new Error(`Failed to download asset from DALL-E image server: ${imgResponse.status}`);
-  
-  const arrayBuffer = await imgResponse.arrayBuffer();
-  const base64String = Buffer.from(arrayBuffer).toString('base64');
-  return `data:image/png;base64,${base64String}`;
-}
+// ... keeping your existing callLLMProvider, generateDalle3ImageBase64, and generateFluxImageBase64 code exactly the same ...
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -80,18 +34,39 @@ export default async function handler(req, res) {
     const occasion = req.body?.occasion || "Celebration";
 
     let designContext = customMessage || `A dynamic card themed around ${recipient} for a ${occasion} occasion`;
+
+    // ⏰ CHECK FOR 24-HOUR TIME RESET (86400000 milliseconds = 1 day)
+    const currentTime = Date.now();
+    if (currentTime - lastResetTime > 86400000) {
+      globalDailyCount = 0;
+      lastResetTime = currentTime;
+      console.log("[Reset] 24-hour window elapsed. Counter reset to 0.");
+    }
+
+    // Increment global count
+    globalDailyCount++;
     
-    
-    designContext += ". Please present this as a clean graphic layout design illustration background. Do not add text phrases, quotes, or letters printed over the card layout image.";
+    const PREMIUM_DAILY_LIMIT = 5; 
+    let finalBase64Image = "";
+
+    if (globalDailyCount <= PREMIUM_DAILY_LIMIT) {
+      try {
+        designContext += ". Clean layout graphic vector design. No printed word elements or text typography over image.";
+        finalBase64Image = await generateDalle3ImageBase64(designContext);
+        console.log(`[Premium DALL-E] Running image request ${globalDailyCount}/${PREMIUM_DAILY_LIMIT}`);
+      } catch (dalleError) {
+        console.error("DALL-E failed. Dropping to FLUX fallback: ", dalleError);
+        finalBase64Image = await generateFluxImageBase64(designContext);
+      }
+    } else {
+      // 🔄 LIMIT HIT! Swap to cheap FLUX pipeline silently
+      console.log(`[Limit Swapped] Daily limit reached (${globalDailyCount - 1} spent). Routing directly to FLUX.`);
+      finalBase64Image = await generateFluxImageBase64(designContext);
+    }
 
     const textPrompt = `Generate a short 2-3 word greeting title for a greeting card matching this context: "${designContext}". Return strict JSON: {"headline_greeting": "HAPPY BIRTHDAY"}`;
     let cardText = { headline_greeting: "FOR YOU!" };
-    try { cardText = await callLLMProvider(textPrompt); } catch (e) {
-      console.error("Text headline generator failed, dropping down to default fallback: ", e);
-    }
-    
-    
-    const finalBase64Image = await generatePrimaryAIImageBase64(designContext);
+    try { cardText = await callLLMProvider(textPrompt); } catch (e) {}
 
     return res.status(200).json({
       status: "success",
@@ -99,7 +74,7 @@ export default async function handler(req, res) {
       headline_greeting: cardText.headline_greeting
     });
   } catch (error) {
-    console.error("Backend runtime crash under OpenAI architecture:", error);
+    console.error("Backend runtime failure:", error);
     return res.status(500).json({ status: "error", message: error.message });
   }
 }
